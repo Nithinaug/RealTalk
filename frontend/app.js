@@ -1,90 +1,91 @@
-let ws;
-let username="";
-let joined=false;
+let socket;
+let myName = "";
+let joined = false;
 
-document.addEventListener("DOMContentLoaded",()=>{
+document.addEventListener("DOMContentLoaded", () => {
 
-const u=document.getElementById("username");
-const j=document.getElementById("joinBtn");
-const m=document.getElementById("msgBox");
-const msgs=document.getElementById("messages");
-const usersDiv=document.getElementById("users");
+  const nameBox = document.getElementById("username");
+  const joinBtn = document.getElementById("joinBtn");
+  const msgBox = document.getElementById("msgBox");
+  const msgArea = document.getElementById("messages");
+  const usersBox = document.getElementById("users");
 
-m.disabled=true;
+  msgBox.disabled = true;
 
-const p=location.protocol==="https:"?"wss":"ws";
-ws=new WebSocket(`${p}://${location.host}/ws`);
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  socket = new WebSocket(`${proto}://${location.host}/ws`);
 
-ws.onmessage=e=>{
-const msg=JSON.parse(e.data);
+  socket.onmessage = e => {
+    const data = JSON.parse(e.data);
 
-if(msg.type==="message") addMsg(msg.user,msg.text);
-if(msg.type==="users") showUsers(msg.users);
-};
+    if (data.type === "message") addMsg(data.user, data.text);
+    if (data.type === "users") showUsers(data.users);
+  };
 
-j.onclick=()=>{
-if(ws.readyState!==1) return;
+  joinBtn.onclick = () => {
+    if (socket.readyState !== 1) return;
 
-username=u.value.trim();
-if(!username) return;
+    myName = nameBox.value.trim();
+    if (!myName) return;
 
-ws.send(JSON.stringify({
-type:"join",
-user:username
-}));
+    socket.send(JSON.stringify({
+      type: "join",
+      user: myName
+    }));
 
-joined=true;
-u.disabled=true;
-j.disabled=true;
+    joined = true;
+    nameBox.disabled = true;
+    joinBtn.disabled = true;
 
-m.disabled=false;
-m.focus();
-};
+    msgBox.disabled = false;
+    msgBox.focus();
+  };
 
-u.addEventListener("keydown",e=>{
-if(e.key==="Enter") j.click();
+  nameBox.addEventListener("keydown", e => {
+    if (e.key === "Enter") joinBtn.click();
+  });
+
+  msgBox.addEventListener("keydown", e => {
+    if (!joined) return;
+
+    if (e.key === "Enter") {
+      const text = msgBox.value.trim();
+      if (!text) return;
+
+      socket.send(JSON.stringify({
+        type: "message",
+        user: myName,
+        text: text
+      }));
+
+      msgBox.value = "";
+    }
+  });
+
+  function addMsg(user, text) {
+    const d = document.createElement("div");
+
+    if (user === myName) {
+      d.className = "msg me";
+    } else {
+      d.className = "msg other";
+    }
+
+    d.innerHTML = `<span class="name">${user}</span>${text}`;
+
+    msgArea.appendChild(d);
+    msgArea.scrollTop = msgArea.scrollHeight;
+  }
+
+  function showUsers(list) {
+    usersBox.innerHTML = "";
+
+    list.forEach(name => {
+      const d = document.createElement("div");
+      d.textContent = name;
+      usersBox.appendChild(d);
+    });
+  }
+
 });
 
-m.addEventListener("keydown",e=>{
-if(!joined) return;
-
-if(e.key==="Enter"){
-const t=m.value.trim();
-if(!t) return;
-
-ws.send(JSON.stringify({
-type:"message",
-user:username,
-text:t
-}));
-
-m.value="";
-}
-});
-
-function addMsg(user,text){
-const d=document.createElement("div");
-
-if(user===username){
-d.className="msg me";
-}else{
-d.className="msg other";
-}
-
-d.innerHTML=`<span class="name">${user}</span>${text}`;
-
-msgs.appendChild(d);
-msgs.scrollTop=msgs.scrollHeight;
-}
-
-
-function showUsers(list){
-usersDiv.innerHTML="";
-list.forEach(x=>{
-const d=document.createElement("div");
-d.textContent=x;
-usersDiv.appendChild(d);
-});
-}
-
-});
