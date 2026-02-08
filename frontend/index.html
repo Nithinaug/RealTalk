@@ -1,30 +1,36 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Chat</title>
-<link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8">
+  <title>Chat Room</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="/static/style.css">
 </head>
+
 <body>
 
-<header class="header">Chat</header>
+<header class="header">
+  Chat Room
+</header>
 
 <div class="top-bar">
-<input id="username" placeholder="Username">
-<button id="joinBtn">Join</button>
+  <input id="nameInput" placeholder="Your name">
+  <button id="joinButton">Join</button>
 </div>
 
 <div class="layout">
-<div class="chat">
-<div id="messages" class="messages"></div>
-<div id="typing" class="typing"></div>
-<input id="msgBox" placeholder="Type message">
-</div>
 
-<div class="sidebar">
-<h3>Online</h3>
-<div id="users"></div>
-</div>
+  <div class="chat">
+    <div id="chatMessages" class="messages"></div>
+    <div id="typingText" class="typing"></div>
+    <input id="chatInput" placeholder="Type a message">
+  </div>
+
+  <div class="users-box">
+    <h3>Online</h3>
+    <div id="onlineUsers"></div>
+  </div>
+
 </div>
 
 <script src="/static/app.js"></script>
