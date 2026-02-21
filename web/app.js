@@ -12,31 +12,41 @@ document.addEventListener("DOMContentLoaded", () => {
 
   msgBox.disabled = true;
 
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  socket = new WebSocket(`${proto}://${location.host}/ws`);
+  function connectWebSocket() {
+    const proto = location.protocol === "https:" ? "wss" : "ws";
+    socket = new WebSocket(`${proto}://${location.host}/ws`);
 
-  socket.onmessage = e => {
-    const data = JSON.parse(e.data);
+    socket.onopen = () => {
+      if (myName && joined) {
+        socket.send(JSON.stringify({ type: "join", user: myName }));
+      }
+    };
 
-    if (data.type === "message") addMsg(data.user, data.text);
-    if (data.type === "users") showUsers(data.users);
-  };
+    socket.onmessage = e => {
+      const data = JSON.parse(e.data);
+      if (data.type === "message") addMsg(data.user, data.text);
+      if (data.type === "users") showUsers(data.users);
+    };
+
+    socket.onclose = () => {
+      setTimeout(connectWebSocket, 2000);
+    };
+
+    socket.onerror = err => {
+      socket.close();
+    };
+  }
+
+  connectWebSocket();
 
   joinBtn.onclick = () => {
-    if (socket.readyState !== 1) return;
-
+    if (!socket || socket.readyState !== 1) return;
     myName = nameBox.value.trim();
     if (!myName) return;
-
-    socket.send(JSON.stringify({
-      type: "join",
-      user: myName
-    }));
-
+    socket.send(JSON.stringify({ type: "join", user: myName }));
     joined = true;
     nameBox.disabled = true;
     joinBtn.disabled = true;
-
     msgBox.disabled = false;
     msgBox.focus();
   };
@@ -47,39 +57,24 @@ document.addEventListener("DOMContentLoaded", () => {
 
   msgBox.addEventListener("keydown", e => {
     if (!joined) return;
-
     if (e.key === "Enter") {
       const text = msgBox.value.trim();
       if (!text) return;
-
-      socket.send(JSON.stringify({
-        type: "message",
-        user: myName,
-        text: text
-      }));
-
+      socket.send(JSON.stringify({ type: "message", user: myName, text }));
       msgBox.value = "";
     }
   });
 
   function addMsg(user, text) {
     const d = document.createElement("div");
-
-    if (user === myName) {
-      d.className = "msg me";
-    } else {
-      d.className = "msg other";
-    }
-
+    d.className = user === myName ? "msg me" : "msg other";
     d.innerHTML = `<span class="name">${user}</span>${text}`;
-
     msgArea.appendChild(d);
     msgArea.scrollTop = msgArea.scrollHeight;
   }
 
   function showUsers(list) {
     usersBox.innerHTML = "";
-
     list.forEach(name => {
       const d = document.createElement("div");
       d.textContent = name;
@@ -88,4 +83,3 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
 });
-
