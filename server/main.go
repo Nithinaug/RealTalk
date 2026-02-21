@@ -167,6 +167,24 @@ func main() {
 		handleConnections(c)
 	})
 
+	// Dynamic config.js serving
+	r.GET("/static/config.js", func(c *gin.Context) {
+		url := os.Getenv("SUPABASE_URL")
+		key := os.Getenv("SUPABASE_ANON_KEY")
+
+		if url == "" || key == "" {
+			log.Printf("Warning: SUPABASE_URL or SUPABASE_ANON_KEY not set in environment!")
+		}
+
+		configContent := fmt.Sprintf(`const CONFIG = {
+    SUPABASE_URL: '%s',
+    SUPABASE_ANON_KEY: '%s'
+};`, url, key)
+
+		c.Header("Content-Type", "application/javascript")
+		c.String(http.StatusOK, configContent)
+	})
+
 	// Static files with logging
 	r.GET("/static/*filepath", func(c *gin.Context) {
 		file := c.Param("filepath")
