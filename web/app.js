@@ -32,12 +32,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
   showSignup.onclick = (e) => {
     e.preventDefault();
+    console.log("Switching to signup form");
     loginForm.style.display = "none";
     signupForm.style.display = "block";
   };
 
   showLogin.onclick = (e) => {
     e.preventDefault();
+    console.log("Switching to login form");
     signupForm.style.display = "none";
     loginForm.style.display = "block";
   };
