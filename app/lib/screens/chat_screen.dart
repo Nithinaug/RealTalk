@@ -33,7 +33,7 @@ class _ChatScreenState extends State<ChatScreen> {
     final auth = context.read<AuthService>();
     final ws = context.read<WebSocketService>();
     
-    if (auth.currentUser != null && ws.status != ConnectionStatus.connected) {
+    if (auth.currentUsername != null && ws.status != ConnectionStatus.connected) {
       // 1. Production Render URL
       // 2. Local Emulator (10.0.2.2)
       // 3. Localhost (127.0.0.1)
@@ -47,7 +47,7 @@ class _ChatScreenState extends State<ChatScreen> {
         debugPrint('Connecting to: $url');
         await ws.connect(url);
         if (ws.status == ConnectionStatus.connected) {
-          ws.join(auth.currentUser!);
+          ws.join(auth.currentUsername!);
           return;
         }
       }

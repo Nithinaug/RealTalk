@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Chat Room</title>
@@ -9,30 +10,52 @@
 
 <body>
 
-<header class="header">
-  Chat Room
-</header>
+  <header class="header">
+    Chat Room
+  </header>
 
-<div class="top-bar">
-  <input id="nameInput" placeholder="Your name">
-  <button id="joinButton">Join</button>
-</div>
-
-<div class="layout">
-
-  <div class="chat">
-    <div id="chatMessages" class="messages"></div>
-    <div id="typingText" class="typing"></div>
-    <input id="chatInput" placeholder="Type a message">
+  <div id="auth-container" class="auth-container">
+    <div id="login-form" class="auth-form">
+      <h2>Login</h2>
+      <input id="login-username" placeholder="Username">
+      <input id="login-password" type="password" placeholder="Password">
+      <button id="login-button">Login</button>
+      <p>Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
+    </div>
+    <div id="signup-form" class="auth-form" style="display: none;">
+      <h2>Sign Up</h2>
+      <input id="signup-username" placeholder="Username">
+      <input id="signup-password" type="password" placeholder="Password">
+      <button id="signup-button">Sign Up</button>
+      <p>Already have an account? <a href="#" id="show-login">Login</a></p>
+    </div>
   </div>
 
-  <div class="users-box">
-    <h3>Online</h3>
-    <div id="onlineUsers"></div>
+  <div id="main-chat" style="display: none;">
+    <div class="top-bar">
+      <div class="user-info">
+        <span id="display-name"></span>
+        <button id="logout-button">Logout</button>
+      </div>
+    </div>
+
+    <div class="layout">
+
+      <div class="chat">
+        <div id="chatMessages" class="messages"></div>
+        <div id="typingText" class="typing"></div>
+        <input id="chatInput" placeholder="Type a message">
+      </div>
+
+      <div class="users-box">
+        <h3>Online</h3>
+        <div id="onlineUsers"></div>
+      </div>
+
+    </div>
   </div>
-
-</div>
-
-<script src="/static/app.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="/static/app.js"></script>
 </body>
+
 </html>
