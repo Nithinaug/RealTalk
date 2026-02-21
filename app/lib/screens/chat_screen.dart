@@ -2,10 +2,11 @@
 
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/websocket_service.dart';
+import '../services/auth_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/online_users_sheet.dart';
 import 'connect_screen.dart';
+import 'login_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   const ChatScreen({super.key});
@@ -41,9 +42,20 @@ class _ChatScreenState extends State<ChatScreen> {
 
   void _disconnect() {
     context.read<WebSocketService>().disconnect();
+    // Just goes back to connect screen, doesn't logout
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (_) => const ConnectScreen()),
+    );
+  }
+
+  void _logout() async {
+    context.read<WebSocketService>().disconnect();
+    await context.read<AuthService>().logout();
+    if (!mounted) return;
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
     );
   }
 
@@ -145,10 +157,10 @@ class _ChatScreenState extends State<ChatScreen> {
 
                   // Leave button
                   IconButton(
-                    onPressed: _disconnect,
+                    onPressed: _logout,
                     icon: const Icon(Icons.logout_rounded),
                     color: const Color(0xFF475569),
-                    tooltip: 'Leave chat',
+                    tooltip: 'Logout and exit',
                   ),
                 ],
               ),
