@@ -51,6 +51,7 @@ func handleConnections(c *gin.Context) {
 		clientsMu.Lock()
 		delete(clients, client)
 		clientsMu.Unlock()
+		ws.Close()
 		broadcastUserList()
 	}()
 
@@ -75,11 +76,16 @@ func broadcastUserList() {
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
 
-	var userList []string
+	uniqueUsers := make(map[string]bool)
 	for client := range clients {
 		if client.User != "" {
-			userList = append(userList, client.User)
+			uniqueUsers[client.User] = true
 		}
+	}
+
+	var userList []string
+	for user := range uniqueUsers {
+		userList = append(userList, user)
 	}
 
 	msg := Message{
