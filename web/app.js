@@ -3,12 +3,11 @@ let myName = "";
 let joined = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-
-  const nameBox = document.getElementById("username");
-  const joinBtn = document.getElementById("joinBtn");
-  const msgBox = document.getElementById("msgBox");
-  const msgArea = document.getElementById("messages");
-  const usersBox = document.getElementById("users");
+const nameBox = document.getElementById("nameInput");
+const joinBtn = document.getElementById("joinButton");
+const msgBox = document.getElementById("chatInput");
+const msgArea = document.getElementById("chatMessages");
+const usersBox = document.getElementById("onlineUsers");
 
   msgBox.disabled = true;
 

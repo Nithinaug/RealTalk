@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
+import '../services/websocket_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/online_users_sheet.dart';
 import 'connect_screen.dart';

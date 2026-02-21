@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gin-gonic/gin"
@@ -36,19 +37,26 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/ws", handleWebSocket)
+	router.Static("/static", "../web")
 	router.GET("/", serveIndexPage)
-	router.Static("/static", "../frontend")
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
 
-	log.Println("Server running on :8080")
-	router.Run(":8080")
+	log.Println("Server running on port " + port)
+	router.Run(":" + port)
 }
 
 func serveIndexPage(c *gin.Context) {
-	c.File("../frontend/index.html")
+	c.File("../web/index.html")
 }
 
 func handleWebSocket(c *gin.Context) {
-	wsConn, _ := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
+	wsConn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
+	if err != nil {
+		return
+	}
 
 	client := &ChatClient{
 		connection: wsConn,
