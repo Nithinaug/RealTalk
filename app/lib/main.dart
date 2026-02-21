@@ -8,15 +8,16 @@ import 'services/auth_service.dart';
 import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // -- SUPABASE INITIALIZATION --
-  // Replace with your actual Supabase URL and Anon Key
+  await dotenv.load(fileName: "../.env");
   await Supabase.initialize(
-    url: 'https://mjszmayetfrhqzmxsdzd.supabase.co',
-    anonKey: 'sb_publishable_eM10rdD5pxCi0NrbRvZpZQ_QCx2K3K-',
+    url: dotenv.get('SUPABASE_URL'),
+    anonKey: dotenv.get('SUPABASE_ANON_KEY'),
   );
 
   SystemChrome.setPreferredOrientations([
