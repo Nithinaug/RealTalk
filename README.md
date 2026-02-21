@@ -1,80 +1,85 @@
-# 💬 Go WebSocket Chat App
+# 🗨️ RealTalk: Multi-Platform Real-Time Chat
 
-A simple real-time chat application built with Go (Gin + Gorilla WebSocket) and a lightweight HTML/CSS/JavaScript frontend.
+RealTalk is a high-performance, real-time chat application with a hybrid architecture. It features a persistent chat history powered by **Supabase** and a live presence system built with **Go and WebSockets**.
 
-This project demonstrates real-time communication using WebSockets and a clean chat UI.
+The project includes both a sleek **Web frontend** and a modern **Flutter mobile application**.
 
 ---
 
-## 🚀 Features
+## 🚀 Key Features
 
-- Real-time messaging with WebSockets  
-- Multiple users chatting simultaneously  
-- Live online users list  
-- Username-based join system  
-- Clean WhatsApp-style UI  
-- Green (your) vs White (others) message bubbles  
-- Full-page layout  
-- Lightweight and fast  
+- **Persistent Messaging**: Chat history is saved securely in Supabase.
+- **Real-Time Presence**: Live "Online Users" list powered by a Go WebSocket server.
+- **Multi-Platform**: Fully featured web app and mobile app (Flutter).
+- **Secure Authentication**: Username/Password login and signup via Supabase Auth.
+- **Premium UI**: WhatsApp-inspired design with smooth animations and responsive layouts.
 
 ---
 
 ## 🛠 Tech Stack
 
-Backend
-- Go  
-- Gin Web Framework  
-- Gorilla WebSocket  
+### Backend & Infrastructure
+- **Go (Golang)**: Presence coordinator and WebSocket server.
+- **Supabase**: 
+  - **Database**: PostgreSQL for message storage.
+  - **Auth**: User management and session persistence.
+  - **Realtime**: Database change listeners for instant message updates.
 
-Frontend
-- HTML  
-- CSS  
-- Vanilla JavaScript  
+### Frontend
+- **Web**: Vanilla JavaScript, HTML5, CSS3.
+- **Mobile**: Flutter/Dart (Android & iOS).
 
 ---
 
 ## 📁 Project Structure
 
-```
-project-root/
-│
-├── backend/
-│   └── main.go
-│
-├── frontend/
-│   ├── index.html
-│   ├── app.js
-│   └── style.css
-│
-└── README.md
+```text
+Real-Time-Chatroom/
+├── app/            # Flutter Mobile Application
+├── server/         # Go WebSocket Server (Presence)
+├── web/            # Web Frontend (Vanilla JS)
+└── README.md       # Project Documentation
 ```
 
 ---
 
 ## ⚙️ How It Works
 
-1. User enters a username  
-2. Browser opens a WebSocket connection to the Go server  
-3. Messages are broadcast to all connected users  
-4. Online users list updates automatically  
-5. Chat updates instantly without page refresh
+1.  **Authentication**: Users sign up/log in using Supabase. The app mocks an email internally (`username@example.com`) to keep the experience focused on usernames.
+2.  **Messaging**: When a message is sent, it is inserted directly into the Supabase `messages` table. All connected clients listen for `INSERT` events to show the message instantly.
+3.  **Presence**: As soon as a user logs in, they connect to the tiny **Go WebSocket server**. This server maintains a list of active connections and broadcasts the list of "Online Users" to everyone.
 
 ---
 
-## 💡 Usage
+## 🚀 Getting Started
 
-- Enter a username  
-- Click Join  
-- Start chatting in real time  
-- Open multiple tabs or devices to chat with others  
+### 1. Backend (Go)
+```bash
+cd server
+go run main.go
+```
+*The server starts on port 8080 by default.*
+
+### 2. Web Frontend
+Simply open `web/index.html` in your browser or serve it using any static file server.
+
+### 3. Mobile App (Flutter)
+```bash
+cd app
+flutter pub get
+flutter run
+```
 
 ---
 
-## ⚠️ Limitation
+## 📝 Configuration
+- **Supabase**: You will need your own `SUPABASE_URL` and `SUPABASE_ANON_KEY`. 
+  - Update them in `web/app.js` for the web.
+  - Update them in `app/lib/main.dart` for the mobile app.
 
-- Messages are **live only**  
-- No chat history is stored  
-- Refreshing the page clears previous messages  
-- Only currently connected users can see messages  
+---
 
-This keeps the app simple and focused on real-time communication.
+## ⚠️ Requirements
+- Go 1.18+
+- Flutter SDK
+- Supabase Project (Tables: `messages`)
