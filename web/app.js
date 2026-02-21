@@ -73,7 +73,8 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!username || !password) return alert("Please enter both username and password");
 
     if (!client) {
-      return alert("Application configuration is missing. Please refresh the page or check the server logs.");
+      const errorDetail = configError || "Unknown error (check browser console)";
+      return alert(`Application configuration is missing!\n\nReason: ${errorDetail}\n\nAction: Please ensure SUPABASE_URL and SUPABASE_ANON_KEY are set in your Render project settings.`);
     }
 
     // Check if user is already online (from the onlineUsers list)
