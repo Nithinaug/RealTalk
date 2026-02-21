@@ -178,7 +178,10 @@ func main() {
 			key := os.Getenv("SUPABASE_ANON_KEY")
 
 			if url == "" || key == "" {
-				log.Printf("Warning: SUPABASE_URL or SUPABASE_ANON_KEY not set in environment!")
+				log.Printf("CRITICAL ERROR: SUPABASE_URL or SUPABASE_ANON_KEY not set in environment!")
+				c.Header("Content-Type", "application/javascript")
+				c.String(500, "console.error('SERVER ERROR: Supabase environment variables are missing on Render!');")
+				return
 			}
 
 			configContent := fmt.Sprintf(`const CONFIG = {
