@@ -15,8 +15,14 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
-  final _nameCtrl = TextEditingController();
-  final _formKey = GlobalKey<FormState>();
+  @override
+  void initState() {
+    super.initState();
+    final auth = context.read<AuthService>();
+    if (auth.currentUser != null) {
+      _nameCtrl.text = auth.currentUser!;
+    }
+  }
 
   Future<void> _connect() async {
     if (!_formKey.currentState!.validate()) return;
@@ -24,6 +30,7 @@ class _ConnectScreenState extends State<ConnectScreen> {
     await svc.connect(kServerUrl);
     if (!mounted) return;
     if (svc.status == ConnectionStatus.connected) {
+      // Use the pre-filled name or the one edited by user (though it's pre-filled)
       svc.join(_nameCtrl.text.trim());
       Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const ChatScreen()));
     } else {
