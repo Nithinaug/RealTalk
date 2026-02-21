@@ -27,13 +27,15 @@
       </div>
       <div id="login-form">
         <div class="input-group">
-          <label>Username</label>
-          <input type="text" id="login-username" placeholder="Enter your username">
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" name="username" autocomplete="username"
+            placeholder="Enter your username">
         </div>
         <div class="input-group">
-          <label>Password</label>
+          <label for="login-password">Password</label>
           <div class="password-field">
-            <input type="password" id="login-password" placeholder="Enter your password">
+            <input type="password" id="login-password" name="password" autocomplete="current-password"
+              placeholder="Enter your password">
             <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
               stroke-width="2">
               <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
@@ -49,12 +51,14 @@
       </div>
       <div id="signup-form" style="display: none;">
         <div class="input-group">
-          <label>Username</label>
-          <input type="text" id="signup-username" placeholder="Pick a username">
+          <label for="signup-username">Username</label>
+          <input type="text" id="signup-username" name="username" autocomplete="new-username"
+            placeholder="Pick a username">
         </div>
         <div class="input-group">
-          <label>Password</label>
-          <input type="password" id="signup-password" placeholder="Create a password">
+          <label for="signup-password">Password</label>
+          <input type="password" id="signup-password" name="password" autocomplete="new-password"
+            placeholder="Create a password">
         </div>
         <button id="signup-button" class="btn-primary">
           <span class="btn-text">Sign Up</span>
