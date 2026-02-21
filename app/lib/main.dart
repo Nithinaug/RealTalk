@@ -28,7 +28,7 @@ class ChatApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => WebSocketService()),
       ],
       child: MaterialApp(
-        title: 'Chat Room',
+        title: 'RealTalk',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
           colorScheme: ColorScheme.fromSeed(
