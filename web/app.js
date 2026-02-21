@@ -15,7 +15,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginBtn = document.getElementById("login-button");
   const signupBtn = document.getElementById("signup-button");
   const logoutBtn = document.getElementById("logout-button");
-  const authSubtitle = document.getElementById("auth-subtitle");
 
   const mainChat = document.getElementById("main-chat");
   const msgBox = document.getElementById("chatInput");
@@ -29,14 +28,12 @@ document.addEventListener("DOMContentLoaded", () => {
     e.preventDefault();
     loginForm.style.display = "none";
     signupForm.style.display = "block";
-    authSubtitle.textContent = "Join the global conversation";
   };
 
   showLogin.onclick = (e) => {
     e.preventDefault();
     signupForm.style.display = "none";
     loginForm.style.display = "block";
-    authSubtitle.textContent = "Welcome back to the community";
   };
 
   function setBtnLoading(btn, isLoading) {
