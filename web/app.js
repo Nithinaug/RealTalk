@@ -280,7 +280,9 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  client.auth.getUser().then(({ data }) => {
-    if (data.user) onAuthenticated(data.user);
-  });
+  if (client) {
+    client.auth.getUser().then(({ data }) => {
+      if (data.user) onAuthenticated(data.user);
+    });
+  }
 });
