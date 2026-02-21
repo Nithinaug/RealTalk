@@ -49,6 +49,8 @@ Real-Time-Chatroom/
 2.  **Messaging**: When a message is sent, it is inserted directly into the Supabase `messages` table. All connected clients listen for `INSERT` events to show the message instantly.
 3.  **Presence**: As soon as a user logs in, they connect to the tiny **Go WebSocket server**. This server maintains a list of active connections and broadcasts the list of "Online Users" to everyone.
 
+4. **Keep-Alive**: To prevent the server from sleeping on Render's free tier, the server automatically pings itself every 14 minutes if the `APP_URL` environment variable is set.
+
 ---
 
 ## 🚀 Getting Started
@@ -69,6 +71,16 @@ cd app
 flutter pub get
 flutter run
 ```
+
+---
+
+## ☁️ Deployment on Render (Free Tier)
+To keep your server awake automatically:
+1. Go to your Render Dashboard -> **Environment**.
+2. Add a new Environment Variable:
+   - **Key**: `APP_URL`
+   - **Value**: `https://your-app-name.onrender.com` (replace with your actual URL)
+3. Your server will now ping its own `/health` endpoint every 14 minutes to stay active.
 
 ---
 
