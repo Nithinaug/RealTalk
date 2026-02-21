@@ -9,7 +9,7 @@ import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
   // -- SUPABASE INITIALIZATION --
