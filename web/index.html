@@ -3,40 +3,29 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>RealTalk | Real-Time Chat Room</title>
+  <title>RealTalk</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-  <!-- Premium Typography -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link
     href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap"
     rel="stylesheet">
-
   <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
-
-  <!-- App Background Glows -->
-  <div class="glow-1"></div>
-  <div class="glow-2"></div>
-
   <div id="auth-container" class="auth-wrapper">
     <div class="auth-card">
       <div class="auth-header">
         <div class="app-icon">
-          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <svg width="60" height="60" viewBox="0 0 24 24" fill="#22c55e" xmlns="http://www.w3.org/2000/svg">
             <path
-              d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 13.4876 3.36093 14.891 4 16.1272L3 21L7.87279 20C9.10904 20.6391 10.5124 21 12 21Z"
-              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+              d="M21 15C21 15.5304 20.7893 16.0391 20.4142 16.4142C20.0391 16.7893 19.5304 17 19 17H7L3 21V5C3 4.46957 3.21071 3.96086 3.58579 3.58579C3.96086 3.21071 4.46957 3 5 3H19C19.5304 3 20.0391 3.21071 20.4142 3.58579C20.7893 3.96086 21 4.46957 21 5V15Z" />
           </svg>
         </div>
-        <h1>RealTalk</h1>
-        <p id="auth-subtitle">Welcome back to the community</p>
+        <h1>Welcome Back</h1>
+        <p id="auth-subtitle">Login to your account to continue</p>
       </div>
-
-      <!-- Login Form -->
       <div id="login-form">
         <div class="input-group">
           <label for="login-username">Username</label>
@@ -44,7 +33,9 @@
         </div>
         <div class="input-group">
           <label for="login-password">Password</label>
-          <input type="password" id="login-password" placeholder="Enter your password">
+          <div class="password-wrapper">
+            <input type="password" id="login-password" placeholder="Enter your password">
+          </div>
         </div>
         <button id="login-button" class="btn-primary">
           <span class="btn-text">Login</span>
@@ -52,8 +43,6 @@
         </button>
         <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
       </div>
-
-      <!-- Signup Form -->
       <div id="signup-form" style="display: none;">
         <div class="input-group">
           <label for="signup-username">Username</label>
@@ -71,7 +60,6 @@
       </div>
     </div>
   </div>
-
   <div id="main-chat" class="chat-wrapper" style="display: none;">
     <header class="chat-header">
       <div class="chat-info">
@@ -85,18 +73,16 @@
         <div class="user-meta">
           <span id="display-name" class="username-pill"></span>
         </div>
-        <button id="logout-button" class="btn-icon" title="Logout">
+        <button id="logout-button" class="btn-icon">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
           </svg>
         </button>
       </div>
     </header>
-
     <main class="chat-layout">
       <section class="messages-container">
         <div id="chatMessages" class="messages-list"></div>
-
         <div class="input-area">
           <div class="input-wrapper">
             <input id="chatInput" placeholder="Type a message..." autocomplete="off">
@@ -108,7 +94,6 @@
           </div>
         </div>
       </section>
-
       <aside class="online-users-panel">
         <div class="panel-header">
           <h3>Online Users</h3>
@@ -117,8 +102,6 @@
       </aside>
     </main>
   </div>
-
-  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/static/app.js"></script>
 </body>

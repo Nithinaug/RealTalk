@@ -7,7 +7,6 @@ let myName = "";
 let joined = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-
   const authWrapper = document.getElementById("auth-container");
   const loginForm = document.getElementById("login-form");
   const signupForm = document.getElementById("signup-form");
@@ -40,7 +39,6 @@ document.addEventListener("DOMContentLoaded", () => {
     authSubtitle.textContent = "Welcome back to the community";
   };
 
-  
   function setBtnLoading(btn, isLoading) {
     const text = btn.querySelector(".btn-text");
     const loader = btn.querySelector(".loader");
@@ -132,7 +130,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function setupRealtime() {
     client.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-                if (payload.new.username !== myName) {
+        if (payload.new.username !== myName) {
           addMsg(payload.new.username, payload.new.text);
         }
       })
@@ -167,16 +165,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       await client.from('messages').insert({ username: myName, text: text });
-
       addMsg(myName, text);
       msgBox.value = "";
 
-     
       if (socket && socket.readyState === 1) {
         socket.send(JSON.stringify({ type: "message", user: myName, text }));
       }
     } catch (e) {
-      console.error("Failed to send message:", e);
+      console.error(e);
     }
   }
 
