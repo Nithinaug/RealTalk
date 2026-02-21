@@ -1,6 +1,12 @@
-const SUPABASE_URL = CONFIG.SUPABASE_URL;
-const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
-const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let client;
+try {
+  const SUPABASE_URL = CONFIG.SUPABASE_URL;
+  const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
+  client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  console.log("Supabase client initialized.");
+} catch (e) {
+  console.error("Failed to initialize Supabase client. This usually means config.js failed to load.", e);
+}
 
 let socket;
 let myName = "";
@@ -51,21 +57,43 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function handleLogin() {
+    console.log("Starting handleLogin...");
     const username = document.getElementById("login-username").value.trim();
     const password = document.getElementById("login-password").value;
     if (!username || !password) return alert("Please enter both username and password");
 
-    setBtnLoading(loginBtn, true);
-    const { data, error } = await client.auth.signInWithPassword({
-      email: `${username}@example.com`,
-      password: password
-    });
-
-    if (error) {
-      setBtnLoading(loginBtn, false);
-      return alert(error.message);
+    if (!client) {
+      return alert("Application configuration is missing. Please refresh the page or check the server logs.");
     }
-    onAuthenticated(data.user);
+
+    // Check if user is already online (from the onlineUsers list)
+    const onlineUsersList = Array.from(document.querySelectorAll(".user-item span")).map(el => el.textContent);
+    if (onlineUsersList.includes(username)) {
+      if (!confirm(`Warning: User "${username}" appears to be already logged in on another device. Continue?`)) {
+        return;
+      }
+    }
+
+    setBtnLoading(loginBtn, true);
+    try {
+      console.log(`Attempting login for: ${username}@example.com`);
+      const { data, error } = await client.auth.signInWithPassword({
+        email: `${username}@example.com`,
+        password: password
+      });
+
+      if (error) {
+        console.error("Auth error:", error);
+        setBtnLoading(loginBtn, false);
+        return alert(error.message);
+      }
+      console.log("Auth success, user data:", data.user);
+      onAuthenticated(data.user);
+    } catch (err) {
+      console.error("Unexpected error during login:", err);
+      setBtnLoading(loginBtn, false);
+      alert("An unexpected error occurred: " + err.message);
+    }
   }
 
   async function handleSignup() {
@@ -73,6 +101,10 @@ document.addEventListener("DOMContentLoaded", () => {
     const password = document.getElementById("signup-password").value;
     if (!username || !password) return alert("Please enter both username and password");
     if (password.length < 6) return alert("Password must be at least 6 characters");
+
+    if (!client) {
+      return alert("Application configuration is missing. Please refresh the page or check the server logs.");
+    }
 
     setBtnLoading(signupBtn, true);
     const { data, error } = await client.auth.signUp({
@@ -100,15 +132,24 @@ document.addEventListener("DOMContentLoaded", () => {
   logoutBtn.onclick = handleLogout;
 
   async function onAuthenticated(user) {
+    console.log("onAuthenticated called for:", user.email);
     myName = user.user_metadata.username || user.email.split('@')[0];
     displayName.textContent = myName;
     authWrapper.style.display = "none";
     mainChat.style.display = "flex";
     joined = true;
 
-    await fetchHistory();
-    connectWebSocket();
-    setupRealtime();
+    try {
+      console.log("Fetching chat history...");
+      await fetchHistory();
+      console.log("Connecting WebSocket...");
+      connectWebSocket();
+      console.log("Setting up Realtime...");
+      setupRealtime();
+    } catch (err) {
+      console.error("Error during post-auth setup:", err);
+      alert("Error loading chat data. Check console for details.");
+    }
   }
 
   async function fetchHistory() {
@@ -118,7 +159,13 @@ document.addEventListener("DOMContentLoaded", () => {
       .order('created_at', { ascending: true })
       .limit(100);
 
+    if (error) {
+      console.error("Error fetching history:", error);
+      throw error;
+    }
+
     if (data) {
+      console.log(`Fetched ${data.length} messages.`);
       msgArea.innerHTML = "";
       data.forEach(m => addMsg(m.username, m.text, m.created_at));
     }

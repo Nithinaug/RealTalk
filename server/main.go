@@ -118,12 +118,29 @@ func broadcastMessage(msg Message) {
 }
 
 func findPath(target string) string {
-	if _, err := os.Stat(target); err == nil {
+	abs, err := filepath.Abs(".")
+	if err != nil {
 		return target
 	}
-	if _, err := os.Stat(filepath.Join("..", target)); err == nil {
-		return filepath.Join("..", target)
+
+	// Try current directory
+	path := filepath.Join(abs, target)
+	if _, err := os.Stat(path); err == nil {
+		log.Printf("Found %s at: %s", target, path)
+		return path
 	}
+
+	// Try parent directory
+	path = filepath.Join(abs, "..", target)
+	if _, err := os.Stat(path); err == nil {
+		log.Printf("Found %s at: %s", target, path)
+		return path
+	}
+
+	// Try app subdirectory (for cases where user is in root but wants app/web)
+	// But we prefer the root web folder for this Go server.
+
+	log.Printf("Warning: Could not find %s directory reliably. Defaulting to: %s", target, target)
 	return target
 }
 
@@ -137,7 +154,10 @@ func main() {
 	r := gin.Default()
 
 	webDir := findPath("web")
-	indexFile := filepath.Join(webDir, "index.html")
+	absWebDir, _ := filepath.Abs(webDir)
+	indexFile := filepath.Join(absWebDir, "index.html")
+	log.Printf("Static files directory: %s", absWebDir)
+	log.Printf("Index file path: %s", indexFile)
 
 	r.GET("/health", func(c *gin.Context) {
 		c.String(http.StatusOK, "OK")
@@ -147,10 +167,35 @@ func main() {
 		handleConnections(c)
 	})
 
-	r.Static("/static", webDir)
+	// Static files with logging
+	r.GET("/static/*filepath", func(c *gin.Context) {
+		file := c.Param("filepath")
+		fullPath := filepath.Join(absWebDir, file)
+		log.Printf("Requesting static file: %s -> %s", file, fullPath)
+		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
+			log.Printf("File not found: %s", fullPath)
+		}
+		c.File(fullPath)
+	})
 
 	r.NoRoute(func(c *gin.Context) {
+		log.Printf("No route for %s, serving index.html: %s", c.Request.URL.Path, indexFile)
 		c.File(indexFile)
+	})
+
+	// Debug route
+	r.GET("/debug/web", func(c *gin.Context) {
+		files, _ := os.ReadDir(absWebDir)
+		var list []string
+		for _, f := range files {
+			list = append(list, f.Name())
+		}
+		currDir, _ := filepath.Abs(".")
+		c.JSON(200, gin.H{
+			"webDir": absWebDir,
+			"files":  list,
+			"cwd":    currDir,
+		})
 	})
 
 	// Start self-pinging keep-alive if APP_URL is provided
