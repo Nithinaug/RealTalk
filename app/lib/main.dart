@@ -7,9 +7,18 @@ import 'services/websocket_service.dart';
 import 'services/auth_service.dart';
 import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // -- SUPABASE INITIALIZATION --
+  // Replace with your actual Supabase URL and Anon Key
+  await Supabase.initialize(
+    url: 'https://mjszmayetfrhqzmxsdzd.supabase.co',
+    anonKey: 'sb_publishable_eM10rdD5pxCi0NrbRvZpZQ_QCx2K3K-',
+  );
+
   SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,
     DeviceOrientation.portraitDown,
