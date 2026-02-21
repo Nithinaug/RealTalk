@@ -170,6 +170,7 @@ func main() {
 	// Unified Static handler to avoid routing conflicts
 	r.GET("/static/*filepath", func(c *gin.Context) {
 		file := c.Param("filepath")
+		log.Printf("DEBUG: Static request for path: '%s'", file)
 
 		// Handle dynamic config.js
 		if file == "/config.js" || file == "config.js" {

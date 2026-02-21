@@ -1,11 +1,19 @@
 let client;
+let configError = null;
 try {
+  if (typeof CONFIG === 'undefined') {
+    throw new Error("CONFIG is not defined. config.js may have failed to load.");
+  }
   const SUPABASE_URL = CONFIG.SUPABASE_URL;
   const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
+  if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+    throw new Error("Supabase URL or Anon Key is empty in CONFIG.");
+  }
   client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   console.log("Supabase client initialized.");
 } catch (e) {
-  console.error("Failed to initialize Supabase client. This usually means config.js failed to load.", e);
+  configError = e.message;
+  console.error("Failed to initialize Supabase client:", e);
 }
 
 let socket;
