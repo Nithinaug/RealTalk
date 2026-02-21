@@ -1,5 +1,5 @@
-const SUPABASE_URL = 'https://mjszmayetfrhqzmxsdzd.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_eM10rdD5pxCi0NrbRvZpZQ_QCx2K3K-';
+const SUPABASE_URL = CONFIG.SUPABASE_URL;
+const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
 const client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 let socket;
