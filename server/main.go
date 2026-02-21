@@ -167,27 +167,30 @@ func main() {
 		handleConnections(c)
 	})
 
-	// Dynamic config.js serving
-	r.GET("/static/config.js", func(c *gin.Context) {
-		url := os.Getenv("SUPABASE_URL")
-		key := os.Getenv("SUPABASE_ANON_KEY")
+	// Unified Static handler to avoid routing conflicts
+	r.GET("/static/*filepath", func(c *gin.Context) {
+		file := c.Param("filepath")
 
-		if url == "" || key == "" {
-			log.Printf("Warning: SUPABASE_URL or SUPABASE_ANON_KEY not set in environment!")
-		}
+		// Handle dynamic config.js
+		if file == "/config.js" || file == "config.js" {
+			url := os.Getenv("SUPABASE_URL")
+			key := os.Getenv("SUPABASE_ANON_KEY")
 
-		configContent := fmt.Sprintf(`const CONFIG = {
+			if url == "" || key == "" {
+				log.Printf("Warning: SUPABASE_URL or SUPABASE_ANON_KEY not set in environment!")
+			}
+
+			configContent := fmt.Sprintf(`const CONFIG = {
     SUPABASE_URL: '%s',
     SUPABASE_ANON_KEY: '%s'
 };`, url, key)
 
-		c.Header("Content-Type", "application/javascript")
-		c.String(http.StatusOK, configContent)
-	})
+			c.Header("Content-Type", "application/javascript")
+			c.String(http.StatusOK, configContent)
+			return
+		}
 
-	// Static files with logging
-	r.GET("/static/*filepath", func(c *gin.Context) {
-		file := c.Param("filepath")
+		// Handle other static files
 		fullPath := filepath.Join(absWebDir, file)
 		log.Printf("Requesting static file: %s -> %s", file, fullPath)
 		if _, err := os.Stat(fullPath); os.IsNotExist(err) {
