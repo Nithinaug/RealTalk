@@ -5,7 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import 'signup_screen.dart';
-import 'connect_screen.dart';
+import 'chat_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -38,7 +38,7 @@ class _LoginScreenState extends State<LoginScreen> {
     if (success) {
       Navigator.pushReplacement(
         context,
-        MaterialPageRoute(builder: (_) => const ConnectScreen()),
+        MaterialPageRoute(builder: (_) => const ChatScreen()),
       );
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

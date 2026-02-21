@@ -26,15 +26,26 @@ class WebSocketService extends ChangeNotifier {
   String get username => _username;
 
   // ── Connect ──────────────────────────────────────────────────────────────
-  Future<void> connect(String ngrokUrl) async {
-    // Accept http(s) or ws(s) URLs and convert to ws(s)
-    _serverUrl = _toWsUrl(ngrokUrl);
+  Future<void> _toPing(String url) async {
+    // Just a quick check to see if the host is reachable
+    try {
+      final pingUrl = url.replaceFirst('/ws', '/ping').replaceFirst('ws://', 'http://').replaceFirst('wss://', 'https://');
+      // We don't have http package, so we use a simple socket check if needed, 
+      // but for now we'll just rely on the WebSocket's own error handling which is quite good in web_socket_channel
+    } catch (_) {}
+  }
+
+  Future<void> connect(String url) async {
+    _serverUrl = _toWsUrl(url);
     status = ConnectionStatus.connecting;
     errorMessage = null;
     notifyListeners();
 
     try {
+      debugPrint('Connecting to: $_serverUrl');
       _channel = WebSocketChannel.connect(Uri.parse(_serverUrl));
+      
+      // Wait for the connection to be established or fail
       await _channel!.ready;
 
       status = ConnectionStatus.connected;
@@ -47,7 +58,16 @@ class WebSocketService extends ChangeNotifier {
       );
     } catch (e) {
       status = ConnectionStatus.error;
-      errorMessage = 'Could not connect: $e';
+      // Provide more detailed error info based on the exception type
+      String detail = e.toString();
+      if (detail.contains('HandshakeException')) {
+        detail = 'SSL Handshake Failed. This usually means the server certificate is invalid or the protocol (WSS) is blocked.';
+      } else if (detail.contains('Connection refused')) {
+        detail = 'Connection Refused. Ensure the server is running and the port is correct.';
+      }
+      
+      errorMessage = 'Failed to connect to $_serverUrl\n$detail';
+      debugPrint('WebSocket Connection Error: $errorMessage');
       notifyListeners();
     }
   }
@@ -102,7 +122,7 @@ class WebSocketService extends ChangeNotifier {
 
   void _onError(Object error) {
     status = ConnectionStatus.error;
-    errorMessage = error.toString();
+    errorMessage = 'WebSocket Error: $error\n(Check if URL is correct and server is reachable)';
     notifyListeners();
   }
 
@@ -114,19 +134,30 @@ class WebSocketService extends ChangeNotifier {
 
   String _toWsUrl(String url) {
     url = url.trim();
-    String result;
+    if (url.isEmpty) return '';
+
+    // If it's a raw IP or localhost, try ws:// by default unless specified
+    bool isLocal = url.contains('localhost') || 
+                  url.contains('127.0.0.1') || 
+                  url.contains('10.0.2.2');
+
     if (url.startsWith('https://')) {
-      result = url.replaceFirst('https://', 'wss://');
+      url = url.replaceFirst('https://', 'wss://');
     } else if (url.startsWith('http://')) {
-      result = url.replaceFirst('http://', 'ws://');
+      url = url.replaceFirst('http://', 'ws://');
     } else if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
-      result = 'wss://$url';
-    } else {
-      result = url;
+      // Default to wss:// for production UNLESS it's a local address
+      url = isLocal ? 'ws://$url' : 'wss://$url';
+    }
+
+    // Ensure /ws suffix if not present
+    final uri = Uri.parse(url);
+    if (!uri.path.endsWith('/ws')) {
+      url = url.endsWith('/') ? '${url}ws' : '$url/ws';
     }
     
-    debugPrint('Connecting to WebSocket: $result');
-    return result;
+    debugPrint('Connecting to WebSocket: $url');
+    return url;
   }
 
   @override

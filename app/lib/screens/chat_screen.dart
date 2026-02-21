@@ -6,7 +6,6 @@ import '../services/auth_service.dart';
 import '../services/websocket_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/online_users_sheet.dart';
-import 'connect_screen.dart';
 import 'login_screen.dart';
 
 class ChatScreen extends StatefulWidget {
@@ -20,6 +19,50 @@ class _ChatScreenState extends State<ChatScreen> {
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _usersVisible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Auto-connect when screen is initialized
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _autoConnect();
+    });
+  }
+
+  Future<void> _autoConnect() async {
+    final auth = context.read<AuthService>();
+    final ws = context.read<WebSocketService>();
+    
+    if (auth.currentUser != null && ws.status != ConnectionStatus.connected) {
+      // 1. Production Render URL
+      // 2. Local Emulator (10.0.2.2)
+      // 3. Localhost (127.0.0.1)
+      final List<String> urlsToTry = [
+        'wss://real-time-chatroom-6f6f.onrender.com/ws', 
+        'ws://10.0.2.2:8080/ws',                     
+        'ws://localhost:8080/ws',                  
+      ];
+
+      for (final url in urlsToTry) {
+        debugPrint('Connecting to: $url');
+        await ws.connect(url);
+        if (ws.status == ConnectionStatus.connected) {
+          ws.join(auth.currentUser!);
+          return;
+        }
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(ws.errorMessage ?? 'Connection failed. Check your internet or server.'),
+            backgroundColor: Colors.red.shade600,
+            duration: const Duration(seconds: 5),
+          ),
+        );
+      }
+    }
+  }
 
   void _sendMessage() {
     final text = _msgCtrl.text.trim();
@@ -42,22 +85,18 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   void _disconnect() {
+    // This is called when we want to MANUALLY disconnect and go to login
     context.read<WebSocketService>().disconnect();
-    // Just goes back to connect screen, doesn't logout
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const ConnectScreen()),
+    context.read<AuthService>().logout();
+    Navigator.pushAndRemoveUntil(
+      context, 
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
     );
   }
 
   void _logout() async {
-    context.read<WebSocketService>().disconnect();
-    await context.read<AuthService>().logout();
-    if (!mounted) return;
-    Navigator.pushReplacement(
-      context,
-      MaterialPageRoute(builder: (_) => const LoginScreen()),
-    );
+    _disconnect();
   }
 
   @override
@@ -67,20 +106,35 @@ class _ChatScreenState extends State<ChatScreen> {
     // Auto-scroll on new messages
     if (svc.messages.isNotEmpty) _scrollToBottom();
 
-    // Handle disconnection
-    if (svc.status == ConnectionStatus.disconnected ||
-        svc.status == ConnectionStatus.error) {
+    // Handle disconnection or errors
+    if (svc.status == ConnectionStatus.error) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text(svc.errorMessage ?? 'Disconnected from server'),
+              content: Text(svc.errorMessage ?? 'Connection Failed'),
               backgroundColor: Colors.red.shade600,
+              behavior: SnackBarBehavior.floating,
+              duration: const Duration(seconds: 10),
               action: SnackBarAction(
-                label: 'Reconnect',
+                label: 'Retry',
                 textColor: Colors.white,
-                onPressed: _disconnect,
+                onPressed: _autoConnect,
               ),
+            ),
+          );
+        }
+      });
+    } else if (svc.status == ConnectionStatus.connecting) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).hideCurrentSnackBar();
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Connecting to server...'),
+              backgroundColor: Color(0xFF475569),
+              duration: Duration(seconds: 2),
             ),
           );
         }

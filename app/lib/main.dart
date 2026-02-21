@@ -5,7 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'services/websocket_service.dart';
 import 'services/auth_service.dart';
-import 'screens/connect_screen.dart';
+import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 
 void main() {
@@ -57,6 +57,6 @@ class AuthWrapper extends StatelessWidget {
       );
     }
 
-    return auth.isAuthenticated ? const ConnectScreen() : const LoginScreen();
+    return auth.isAuthenticated ? const ChatScreen() : const LoginScreen();
   }
 }
