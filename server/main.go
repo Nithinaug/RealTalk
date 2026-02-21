@@ -1,12 +1,13 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net/http"
 	"os"
+	"path/filepath"
 	"sync"
 
+	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
@@ -33,12 +34,13 @@ var (
 	clientsMu sync.Mutex
 )
 
-func handleConnections(w http.ResponseWriter, r *http.Request) {
-	ws, err := upgrader.Upgrade(w, r, nil)
+func handleConnections(c *gin.Context) {
+	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
 		return
 	}
+	defer ws.Close()
 
 	client := &Client{Conn: ws}
 	clientsMu.Lock()
@@ -49,7 +51,6 @@ func handleConnections(w http.ResponseWriter, r *http.Request) {
 		clientsMu.Lock()
 		delete(clients, client)
 		clientsMu.Unlock()
-		ws.Close()
 		broadcastUserList()
 	}()
 
@@ -89,7 +90,6 @@ func broadcastUserList() {
 	for client := range clients {
 		err := client.Conn.WriteJSON(msg)
 		if err != nil {
-			log.Printf("error: %v", err)
 			client.Conn.Close()
 			delete(clients, client)
 		}
@@ -103,11 +103,20 @@ func broadcastMessage(msg Message) {
 	for client := range clients {
 		err := client.Conn.WriteJSON(msg)
 		if err != nil {
-			log.Printf("error: %v", err)
 			client.Conn.Close()
 			delete(clients, client)
 		}
 	}
+}
+
+func findPath(target string) string {
+	if _, err := os.Stat(target); err == nil {
+		return target
+	}
+	if _, err := os.Stat(filepath.Join("..", target)); err == nil {
+		return filepath.Join("..", target)
+	}
+	return target
 }
 
 func main() {
@@ -116,17 +125,25 @@ func main() {
 		port = "8080"
 	}
 
-	http.HandleFunc("/ws", handleConnections)
+	gin.SetMode(gin.ReleaseMode)
+	r := gin.Default()
 
-	fs := http.FileServer(http.Dir("./web"))
-	http.Handle("/static/", http.StripPrefix("/static/", fs))
-	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		http.ServeFile(w, r, "./web/index.html")
+	webDir := findPath("web")
+	indexFile := filepath.Join(webDir, "index.html")
+
+	r.GET("/ws", func(c *gin.Context) {
+		handleConnections(c)
 	})
 
-	fmt.Printf("Server started on :%s\n", port)
-	err := http.ListenAndServe(":"+port, nil)
+	r.Static("/static", webDir)
+
+	r.NoRoute(func(c *gin.Context) {
+		c.File(indexFile)
+	})
+
+	log.Printf("Server started on :%s", port)
+	err := r.Run(":" + port)
 	if err != nil {
-		log.Fatal("ListenAndServe: ", err)
+		log.Fatal(err)
 	}
 }
