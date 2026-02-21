@@ -26,7 +26,6 @@ class WebSocketService extends ChangeNotifier {
   bool get isJoined => _joined;
   String get username => _username;
 
-  // -- Supabase Persistence --
   Future<void> _fetchHistory() async {
     try {
       final data = await _supabase
@@ -41,7 +40,7 @@ class WebSocketService extends ChangeNotifier {
           type: 'message',
           user: row['username'],
           text: row['text'],
-          timestamp: DateTime.parse(row['created_at']),
+          timestamp: DateTime.parse(row['created_at']).toLocal(),
         ));
       }
       notifyListeners();
@@ -61,10 +60,9 @@ class WebSocketService extends ChangeNotifier {
             type: 'message',
             user: payload.newRecord['username'],
             text: payload.newRecord['text'],
-            timestamp: DateTime.parse(payload.newRecord['created_at']),
+            timestamp: DateTime.parse(payload.newRecord['created_at']).toLocal(),
           );
           
-          // Only add if not already in list (to avoid double adding from broadcast)
           if (!messages.any((m) => m.text == newMessage.text && m.user == newMessage.user && (m.timestamp.difference(newMessage.timestamp).inSeconds.abs() < 2))) {
              messages.add(newMessage);
              notifyListeners();
@@ -73,14 +71,12 @@ class WebSocketService extends ChangeNotifier {
       ).subscribe();
   }
 
-  // ── Connect ──────────────────────────────────────────────────────────────
   Future<void> connect(String url) async {
     _serverUrl = _toWsUrl(url);
     status = ConnectionStatus.connecting;
     errorMessage = null;
     notifyListeners();
 
-    // Fetch history from Supabase
     await _fetchHistory();
     _setupSupabaseRealtime();
 
@@ -98,15 +94,12 @@ class WebSocketService extends ChangeNotifier {
         onDone: _onDone,
       );
     } catch (e) {
-      // We still consider ourselves "connected" if Supabase is working? 
-      // Actually, let's keep the WebSocket as secondary/status only.
       status = ConnectionStatus.error;
       errorMessage = 'WebSocket Error: $e. However, Supabase messages may still work.';
       notifyListeners();
     }
   }
 
-  // ── Join ─────────────────────────────────────────────────────────────────
   void join(String username) {
     _username = username.trim();
     _joined = true;
@@ -114,11 +107,9 @@ class WebSocketService extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ── Send message ─────────────────────────────────────────────────────────
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || !_joined) return;
     
-    // 1. Save to Supabase
     try {
       await _supabase.from('messages').insert({
         'username': _username,
@@ -128,24 +119,20 @@ class WebSocketService extends ChangeNotifier {
       debugPrint('Error saving to Supabase: $e');
     }
 
-    // 2. Broadcast via WebSocket (for instant feedback in current Go setup)
     final msg = ChatMessage(type: 'message', user: _username, text: text.trim());
     _send(msg);
   }
 
-  // ── Disconnect ───────────────────────────────────────────────────────────
   void disconnect() {
     _subscription?.cancel();
     _channel?.sink.close();
     _supabaseChannel?.unsubscribe();
     _joined = false;
     status = ConnectionStatus.disconnected;
-    // messages.clear(); // Keep messages ? User said they want persistence.
     onlineUsers.clear();
     notifyListeners();
   }
 
-  // ── Internals ─────────────────────────────────────────────────────────────
   void _send(ChatMessage msg) {
     if (_channel == null) return;
     try {
@@ -163,9 +150,6 @@ class WebSocketService extends ChangeNotifier {
           ..clear()
           ..addAll(msg.users ?? []);
       } else if (msg.type == 'message') {
-        // If we get it from WebSocket, only add if not from Supabase?
-        // Actually, let's let Supabase handle the persistent truth.
-        // But for live feel, we can add it here if it's not already there.
         if (!messages.any((m) => m.text == msg.text && m.user == msg.user)) {
            messages.add(msg);
         }
@@ -178,7 +162,7 @@ class WebSocketService extends ChangeNotifier {
     debugPrint('WebSocket Error: $error');
   }
 
-  void _onDone() {
+  void _onDataDone() {
     status = ConnectionStatus.disconnected;
     _joined = false;
     notifyListeners();
@@ -206,5 +190,11 @@ class WebSocketService extends ChangeNotifier {
   void dispose() {
     disconnect();
     super.dispose();
+  }
+
+  void _onDone() {
+    status = ConnectionStatus.disconnected;
+    _joined = false;
+    notifyListeners();
   }
 }

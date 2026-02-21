@@ -120,7 +120,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (data) {
       msgArea.innerHTML = "";
-      data.forEach(m => addMsg(m.username, m.text));
+      data.forEach(m => addMsg(m.username, m.text, m.created_at));
     }
   }
 
@@ -128,7 +128,7 @@ document.addEventListener("DOMContentLoaded", () => {
     client.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
         if (payload.new.username !== myName) {
-          addMsg(payload.new.username, payload.new.text);
+          addMsg(payload.new.username, payload.new.text, payload.new.created_at);
         }
       })
       .subscribe();
@@ -162,7 +162,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     try {
       await client.from('messages').insert({ username: myName, text: text });
-      addMsg(myName, text);
+      addMsg(myName, text, new Date().toISOString());
       msgBox.value = "";
 
       if (socket && socket.readyState === 1) {
@@ -178,7 +178,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") sendMessage();
   });
 
-  function addMsg(user, text) {
+  function addMsg(user, text, timestamp) {
     const d = document.createElement("div");
     d.className = user === myName ? "msg me" : "msg other";
 
@@ -186,8 +186,18 @@ document.addEventListener("DOMContentLoaded", () => {
     nameSpan.className = "name";
     nameSpan.textContent = user;
 
+    const timeSpan = document.createElement("span");
+    timeSpan.className = "time";
+    if (timestamp) {
+      const date = new Date(timestamp);
+      timeSpan.textContent = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+    }
+
+    const textNode = document.createTextNode(text);
+
     d.appendChild(nameSpan);
-    d.appendChild(document.createTextNode(text));
+    d.appendChild(textNode);
+    d.appendChild(timeSpan);
 
     msgArea.appendChild(d);
     msgArea.scrollTop = msgArea.scrollHeight;
