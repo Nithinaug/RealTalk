@@ -113,15 +113,20 @@ class WebSocketService extends ChangeNotifier {
   }
 
   String _toWsUrl(String url) {
-    url = url.trim().replaceAll(RegExp(r'/$'), '');
+    url = url.trim();
+    String result;
     if (url.startsWith('https://')) {
-      return url.replaceFirst('https://', 'wss://') + '/ws';
+      result = url.replaceFirst('https://', 'wss://');
     } else if (url.startsWith('http://')) {
-      return url.replaceFirst('http://', 'ws://') + '/ws';
-    } else if (!url.startsWith('ws')) {
-      return 'ws://$url/ws';
+      result = url.replaceFirst('http://', 'ws://');
+    } else if (!url.startsWith('ws://') && !url.startsWith('wss://')) {
+      result = 'wss://$url';
+    } else {
+      result = url;
     }
-    return url.endsWith('/ws') ? url : '$url/ws';
+    
+    debugPrint('Connecting to WebSocket: $result');
+    return result;
   }
 
   @override

@@ -3,9 +3,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/websocket_service.dart';
+import '../services/auth_service.dart';
 import 'chat_screen.dart';
 
-const String kServerUrl = 'https://roofless-unmelodramatically-sharita.ngrok-free.dev';
+const String kServerUrl = 'wss://real-time-chat-6f6f.onrender.com/ws';
 
 class ConnectScreen extends StatefulWidget {
   const ConnectScreen({super.key});
@@ -15,6 +16,9 @@ class ConnectScreen extends StatefulWidget {
 }
 
 class _ConnectScreenState extends State<ConnectScreen> {
+  final _nameCtrl = TextEditingController();
+  final _formKey = GlobalKey<FormState>();
+
   @override
   void initState() {
     super.initState();
