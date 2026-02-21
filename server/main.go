@@ -37,6 +37,9 @@ func main() {
 	router := gin.Default()
 
 	router.GET("/ws", handleWebSocket)
+	router.GET("/ping", func(c *gin.Context) {
+		c.JSON(200, gin.H{"status": "ok"})
+	})
 	router.Static("/static", "../web")
 	router.GET("/", serveIndexPage)
 	port := os.Getenv("PORT")
@@ -55,6 +58,7 @@ func serveIndexPage(c *gin.Context) {
 func handleWebSocket(c *gin.Context) {
 	wsConn, err := wsUpgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
+		log.Printf("WebSocket upgrade failed: %v", err)
 		return
 	}
 
