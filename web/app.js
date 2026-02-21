@@ -7,7 +7,8 @@ let myName = "";
 let joined = false;
 
 document.addEventListener("DOMContentLoaded", () => {
-  const authContainer = document.getElementById("auth-container");
+
+  const authWrapper = document.getElementById("auth-container");
   const loginForm = document.getElementById("login-form");
   const signupForm = document.getElementById("signup-form");
   const showSignup = document.getElementById("show-signup");
@@ -15,57 +16,88 @@ document.addEventListener("DOMContentLoaded", () => {
   const loginBtn = document.getElementById("login-button");
   const signupBtn = document.getElementById("signup-button");
   const logoutBtn = document.getElementById("logout-button");
+  const authSubtitle = document.getElementById("auth-subtitle");
 
   const mainChat = document.getElementById("main-chat");
   const msgBox = document.getElementById("chatInput");
   const msgArea = document.getElementById("chatMessages");
   const usersBox = document.getElementById("onlineUsers");
   const displayName = document.getElementById("display-name");
+  const sendBtn = document.getElementById("send-btn");
+  const onlineCount = document.getElementById("online-count");
 
   showSignup.onclick = (e) => {
     e.preventDefault();
     loginForm.style.display = "none";
     signupForm.style.display = "block";
+    authSubtitle.textContent = "Join the global conversation";
   };
 
   showLogin.onclick = (e) => {
     e.preventDefault();
     signupForm.style.display = "none";
     loginForm.style.display = "block";
+    authSubtitle.textContent = "Welcome back to the community";
   };
+
+  
+  function setBtnLoading(btn, isLoading) {
+    const text = btn.querySelector(".btn-text");
+    const loader = btn.querySelector(".loader");
+    if (isLoading) {
+      text.style.display = "none";
+      loader.style.display = "block";
+      btn.disabled = true;
+    } else {
+      text.style.display = "block";
+      loader.style.display = "none";
+      btn.disabled = false;
+    }
+  }
+
   async function handleLogin() {
     const username = document.getElementById("login-username").value.trim();
     const password = document.getElementById("login-password").value;
-    if (!username || !password) return alert("Please enter credentials");
+    if (!username || !password) return alert("Please enter both username and password");
 
+    setBtnLoading(loginBtn, true);
     const { data, error } = await client.auth.signInWithPassword({
       email: `${username}@example.com`,
       password: password
     });
 
-    if (error) return alert(error.message);
+    if (error) {
+      setBtnLoading(loginBtn, false);
+      return alert(error.message);
+    }
     onAuthenticated(data.user);
   }
 
   async function handleSignup() {
     const username = document.getElementById("signup-username").value.trim();
     const password = document.getElementById("signup-password").value;
-    if (!username || !password) return alert("Please enter credentials");
+    if (!username || !password) return alert("Please enter both username and password");
+    if (password.length < 6) return alert("Password must be at least 6 characters");
 
+    setBtnLoading(signupBtn, true);
     const { data, error } = await client.auth.signUp({
       email: `${username}@example.com`,
       password: password,
       options: { data: { username: username } }
     });
 
+    setBtnLoading(signupBtn, false);
     if (error) return alert(error.message);
-    alert("Account created! Please login.");
+
+    alert("Account created successfully! You can now login.");
     showLogin.click();
   }
 
   async function handleLogout() {
-    await client.auth.signOut();
-    location.reload();
+    if (confirm("Are you sure you want to logout?")) {
+      await client.auth.signOut();
+      location.reload();
+    }
   }
 
   loginBtn.onclick = handleLogin;
@@ -74,9 +106,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function onAuthenticated(user) {
     myName = user.user_metadata.username || user.email.split('@')[0];
-    displayName.textContent = `Hello, ${myName}`;
-    authContainer.style.display = "none";
-    mainChat.style.display = "block";
+    displayName.textContent = myName;
+    authWrapper.style.display = "none";
+    mainChat.style.display = "flex";
     joined = true;
 
     await fetchHistory();
@@ -100,7 +132,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function setupRealtime() {
     client.channel('public:messages')
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        if (payload.new.username !== myName) {
+                if (payload.new.username !== myName) {
           addMsg(payload.new.username, payload.new.text);
         }
       })
@@ -109,7 +141,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function connectWebSocket() {
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    const host = location.host.includes("localhost") || location.host.includes("127.0.0.1") ? location.host : location.host;
+    const host = location.host;
     socket = new WebSocket(`${proto}://${host}/ws`);
 
     socket.onopen = () => {
@@ -120,37 +152,50 @@ document.addEventListener("DOMContentLoaded", () => {
 
     socket.onmessage = e => {
       const data = JSON.parse(e.data);
-      if (data.type === "users") showUsers(data.users);
-
+      if (data.type === "users") {
+        showUsers(data.users);
+        onlineCount.textContent = `${data.users.length} online`;
+      }
     };
 
-    socket.onclose = () => setTimeout(connectWebSocket, 2000);
+    socket.onclose = () => setTimeout(connectWebSocket, 3000);
   }
 
-  msgBox.addEventListener("keydown", async e => {
-    if (!joined) return;
-    if (e.key === "Enter") {
-      const text = msgBox.value.trim();
-      if (!text) return;
+  async function sendMessage() {
+    const text = msgBox.value.trim();
+    if (!text || !joined) return;
 
+    try {
       await client.from('messages').insert({ username: myName, text: text });
 
       addMsg(myName, text);
+      msgBox.value = "";
 
-
+     
       if (socket && socket.readyState === 1) {
         socket.send(JSON.stringify({ type: "message", user: myName, text }));
       }
-
-      msgBox.value = "";
+    } catch (e) {
+      console.error("Failed to send message:", e);
     }
+  }
+
+  sendBtn.onclick = sendMessage;
+  msgBox.addEventListener("keydown", e => {
+    if (e.key === "Enter") sendMessage();
   });
 
   function addMsg(user, text) {
-
     const d = document.createElement("div");
     d.className = user === myName ? "msg me" : "msg other";
-    d.innerHTML = `<span class="name">${user}</span>${text}`;
+
+    const nameSpan = document.createElement("span");
+    nameSpan.className = "name";
+    nameSpan.textContent = user;
+
+    d.appendChild(nameSpan);
+    d.appendChild(document.createTextNode(text));
+
     msgArea.appendChild(d);
     msgArea.scrollTop = msgArea.scrollHeight;
   }
@@ -158,9 +203,19 @@ document.addEventListener("DOMContentLoaded", () => {
   function showUsers(list) {
     usersBox.innerHTML = "";
     list.forEach(name => {
-      const d = document.createElement("div");
-      d.textContent = name;
-      usersBox.appendChild(d);
+      const item = document.createElement("div");
+      item.className = "user-item";
+
+      const avatar = document.createElement("div");
+      avatar.className = "user-avatar";
+      avatar.textContent = name.charAt(0).toUpperCase();
+
+      const nameEl = document.createElement("span");
+      nameEl.textContent = name;
+
+      item.appendChild(avatar);
+      item.appendChild(nameEl);
+      usersBox.appendChild(item);
     });
   }
 

@@ -3,57 +3,122 @@
 
 <head>
   <meta charset="UTF-8">
-  <title>Chat Room</title>
+  <title>RealTalk | Real-Time Chat Room</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;700;800&display=swap"
+    rel="stylesheet">
+
   <link rel="stylesheet" href="/static/style.css">
 </head>
 
 <body>
 
-  <header class="header">
-    Chat Room
-  </header>
+  <!-- App Background Glows -->
+  <div class="glow-1"></div>
+  <div class="glow-2"></div>
 
-  <div id="auth-container" class="auth-container">
-    <div id="login-form" class="auth-form">
-      <h2>Login</h2>
-      <input id="login-username" placeholder="Username">
-      <input id="login-password" type="password" placeholder="Password">
-      <button id="login-button">Login</button>
-      <p>Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
-    </div>
-    <div id="signup-form" class="auth-form" style="display: none;">
-      <h2>Sign Up</h2>
-      <input id="signup-username" placeholder="Username">
-      <input id="signup-password" type="password" placeholder="Password">
-      <button id="signup-button">Sign Up</button>
-      <p>Already have an account? <a href="#" id="show-login">Login</a></p>
+  <div id="auth-container" class="auth-wrapper">
+    <div class="auth-card">
+      <div class="auth-header">
+        <div class="app-icon">
+          <svg width="32" height="32" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M12 21C16.9706 21 21 16.9706 21 12C21 7.02944 16.9706 3 12 3C7.02944 3 3 7.02944 3 12C3 13.4876 3.36093 14.891 4 16.1272L3 21L7.87279 20C9.10904 20.6391 10.5124 21 12 21Z"
+              stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <h1>RealTalk</h1>
+        <p id="auth-subtitle">Welcome back to the community</p>
+      </div>
+
+      <!-- Login Form -->
+      <div id="login-form">
+        <div class="input-group">
+          <label for="login-username">Username</label>
+          <input type="text" id="login-username" placeholder="Enter your username">
+        </div>
+        <div class="input-group">
+          <label for="login-password">Password</label>
+          <input type="password" id="login-password" placeholder="Enter your password">
+        </div>
+        <button id="login-button" class="btn-primary">
+          <span class="btn-text">Login</span>
+          <div class="loader" style="display: none;"></div>
+        </button>
+        <p class="auth-switch">Don't have an account? <a href="#" id="show-signup">Sign Up</a></p>
+      </div>
+
+      <!-- Signup Form -->
+      <div id="signup-form" style="display: none;">
+        <div class="input-group">
+          <label for="signup-username">Username</label>
+          <input type="text" id="signup-username" placeholder="Pick a username">
+        </div>
+        <div class="input-group">
+          <label for="signup-password">Password</label>
+          <input type="password" id="signup-password" placeholder="Create a password">
+        </div>
+        <button id="signup-button" class="btn-primary">
+          <span class="btn-text">Create Account</span>
+          <div class="loader" style="display: none;"></div>
+        </button>
+        <p class="auth-switch">Already have an account? <a href="#" id="show-login">Login</a></p>
+      </div>
     </div>
   </div>
 
-  <div id="main-chat" style="display: none;">
-    <div class="top-bar">
-      <div class="user-info">
-        <span id="display-name"></span>
-        <button id="logout-button">Logout</button>
+  <div id="main-chat" class="chat-wrapper" style="display: none;">
+    <header class="chat-header">
+      <div class="chat-info">
+        <h2>Global Chat</h2>
+        <div class="status-badge">
+          <span class="status-dot"></span>
+          <span id="online-count">0 online</span>
+        </div>
       </div>
-    </div>
-
-    <div class="layout">
-
-      <div class="chat">
-        <div id="chatMessages" class="messages"></div>
-        <div id="typingText" class="typing"></div>
-        <input id="chatInput" placeholder="Type a message">
+      <div class="header-actions">
+        <div class="user-meta">
+          <span id="display-name" class="username-pill"></span>
+        </div>
+        <button id="logout-button" class="btn-icon" title="Logout">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9" />
+          </svg>
+        </button>
       </div>
+    </header>
 
-      <div class="users-box">
-        <h3>Online</h3>
-        <div id="onlineUsers"></div>
-      </div>
+    <main class="chat-layout">
+      <section class="messages-container">
+        <div id="chatMessages" class="messages-list"></div>
 
-    </div>
+        <div class="input-area">
+          <div class="input-wrapper">
+            <input id="chatInput" placeholder="Type a message..." autocomplete="off">
+            <button id="send-btn" class="btn-send">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.5">
+                <path d="M22 2L11 13M22 2L15 22L11 13M11 13L2 9L22 2" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="online-users-panel">
+        <div class="panel-header">
+          <h3>Online Users</h3>
+        </div>
+        <div id="onlineUsers" class="users-list"></div>
+      </aside>
+    </main>
   </div>
+
+  <!-- Scripts -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/static/app.js"></script>
 </body>
