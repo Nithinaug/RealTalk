@@ -210,6 +210,35 @@ class _ChatScreenState extends State<ChatScreen> {
                   ),
                   const SizedBox(width: 8),
 
+                  // Clear Chat button
+                  IconButton(
+                    onPressed: () {
+                      showDialog(
+                        context: context,
+                        builder: (ctx) => AlertDialog(
+                          title: const Text('Clear Chat?'),
+                          content: const Text('This will clear messages locally. They will reload next time you join.'),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(ctx),
+                              child: const Text('Cancel'),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                svc.clearMessages();
+                                Navigator.pop(ctx);
+                              },
+                              child: const Text('Clear', style: TextStyle(color: Colors.red)),
+                            ),
+                          ],
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.delete_sweep_rounded),
+                    color: const Color(0xFF475569),
+                    tooltip: 'Clear local messages',
+                  ),
+
                   // Leave button
                   IconButton(
                     onPressed: _logout,

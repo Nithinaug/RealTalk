@@ -28,6 +28,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const showLogin = document.getElementById("show-login");
   const loginBtn = document.getElementById("login-button");
   const signupBtn = document.getElementById("signup-button");
+  const clearChatBtn = document.getElementById("clear-chat-button");
   const logoutBtn = document.getElementById("logout-button");
 
   const mainChat = document.getElementById("main-chat");
@@ -138,8 +139,15 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  function handleClearChat() {
+    if (confirm("Clear all messages on this device? This will not delete them from the database.")) {
+      msgArea.innerHTML = "";
+    }
+  }
+
   loginBtn.onclick = handleLogin;
   signupBtn.onclick = handleSignup;
+  clearChatBtn.onclick = handleClearChat;
   logoutBtn.onclick = handleLogout;
 
   async function onAuthenticated(user) {

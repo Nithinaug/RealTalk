@@ -123,6 +123,11 @@ class WebSocketService extends ChangeNotifier {
     _send(msg);
   }
 
+  void clearMessages() {
+    messages.clear();
+    notifyListeners();
+  }
+
   void disconnect() {
     _subscription?.cancel();
     _channel?.sink.close();
