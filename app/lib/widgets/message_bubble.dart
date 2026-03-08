@@ -23,7 +23,7 @@ class MessageBubble extends StatelessWidget {
           children: [
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete for Me', style: TextStyle(color: Colors.red)),
+              title: const Text('Delete Message', style: TextStyle(color: Colors.red)),
               onTap: () {
                 if (message.id != null) {
                   context.read<WebSocketService>().deleteMessageForMe(message.id!);

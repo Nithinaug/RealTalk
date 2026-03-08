@@ -135,13 +135,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function handleClearChat() {
     if (!currentRoomID) return;
-    if (confirm("Clear all messages in this room for you? This will sync across your devices.")) {
+    if (confirm("Clear room history for you? This will sync across your devices.")) {
       const { data: { user } } = await client.auth.getUser();
       const { error } = await client
         .from('user_room_clears')
         .upsert({ user_id: user.id, room_id: currentRoomID, cleared_at: new Date().toISOString() });
 
-      if (error) return alert("Failed to clear chat: " + error.message);
+      if (error) return alert("Error: " + error.message);
       msgArea.innerHTML = "";
     }
   }
@@ -150,11 +150,6 @@ document.addEventListener("DOMContentLoaded", () => {
   signupBtn.onclick = handleSignup;
   clearChatBtn.onclick = handleClearChat;
   logoutBtn.onclick = handleLogout;
-
-  createRoomBtn.onclick = () => {
-    const id = Math.random().toString(36).substring(2, 8).toUpperCase();
-    enterRoom(id);
-  };
 
   joinRoomBtn.onclick = () => {
     const id = joinRoomInput.value.trim().toUpperCase();
