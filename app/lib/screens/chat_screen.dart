@@ -201,8 +201,8 @@ class _ChatScreenState extends State<ChatScreen> {
                       showDialog(
                         context: context,
                         builder: (ctx) => AlertDialog(
-                          title: const Text('Clear Chat?'),
-                          content: const Text('This will clear messages for you in this room. Syncs across your devices.'),
+                          title: const Text('Clear History?'),
+                          content: const Text('Clear room history for you? This will sync across your devices.'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx),
