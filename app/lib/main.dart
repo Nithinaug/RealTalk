@@ -64,6 +64,6 @@ class AuthWrapper extends StatelessWidget {
       );
     }
 
-    return auth.isAuthenticated ? const ChatScreen() : const LoginScreen();
+    return auth.isAuthenticated ? const RoomSelectionScreen() : const LoginScreen();
   }
 }

@@ -21,27 +21,55 @@ class WebSocketService extends ChangeNotifier {
 
   String _serverUrl = '';
   String _username = '';
+  String _currentRoomID = '';
   bool _joined = false;
 
   bool get isJoined => _joined;
   String get username => _username;
+  String get currentRoomID => _currentRoomID;
 
   Future<void> _fetchHistory() async {
+    if (_currentRoomID.isEmpty) return;
     try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+
+      final clearData = await _supabase
+          .from('user_room_clears')
+          .select('cleared_at')
+          .eq('user_id', user.id)
+          .eq('room_id', _currentRoomID)
+          .maybeSingle();
+      
+      final clearedAt = clearData?['cleared_at'] ?? '1970-01-01T00:00:00Z';
+
+      final deletedData = await _supabase
+          .from('user_deleted_messages')
+          .select('message_id')
+          .eq('user_id', user.id);
+      
+      final deletedIDs = (deletedData as List).map((d) => d['message_id'] as int).toList();
+
       final data = await _supabase
           .from('messages')
           .select()
+          .eq('room_id', _currentRoomID)
+          .gt('created_at', clearedAt)
           .order('created_at', ascending: true)
           .limit(100);
       
       messages.clear();
       for (var row in data) {
-        messages.add(ChatMessage(
-          type: 'message',
-          user: row['username'],
-          text: row['text'],
-          timestamp: DateTime.parse(row['created_at']).toLocal(),
-        ));
+        if (!deletedIDs.contains(row['id'])) {
+          messages.add(ChatMessage(
+            id: row['id'],
+            type: 'message',
+            user: row['username'],
+            text: row['text'],
+            roomID: row['room_id'],
+            timestamp: DateTime.parse(row['created_at']).toLocal(),
+          ));
+        }
       }
       notifyListeners();
     } catch (e) {
@@ -50,29 +78,61 @@ class WebSocketService extends ChangeNotifier {
   }
 
   void _setupSupabaseRealtime() {
-    _supabaseChannel = _supabase.channel('public:messages')
+    if (_currentRoomID.isEmpty) return;
+    _supabaseChannel?.unsubscribe();
+    
+    _supabaseChannel = _supabase.channel('room:$_currentRoomID')
       .onPostgresChanges(
         event: PostgresChangeEvent.insert,
         schema: 'public',
         table: 'messages',
+        filter: PostgresChangeFilter(
+          type: PostgresChangeFilterType.eq,
+          column: 'room_id',
+          value: _currentRoomID,
+        ),
         callback: (payload) {
           final newMessage = ChatMessage(
+            id: payload.newRecord['id'],
             type: 'message',
             user: payload.newRecord['username'],
             text: payload.newRecord['text'],
+            roomID: payload.newRecord['room_id'],
             timestamp: DateTime.parse(payload.newRecord['created_at']).toLocal(),
           );
           
-          if (!messages.any((m) => m.text == newMessage.text && m.user == newMessage.user && (m.timestamp.difference(newMessage.timestamp).inSeconds.abs() < 2))) {
+          if (!messages.any((m) => m.id == newMessage.id)) {
              messages.add(newMessage);
              notifyListeners();
+          }
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.insert,
+        schema: 'public',
+        table: 'user_deleted_messages',
+        callback: (payload) {
+          final msgId = payload.newRecord['message_id'];
+          messages.removeWhere((m) => m.id == msgId);
+          notifyListeners();
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'user_room_clears',
+        callback: (payload) {
+          if (payload.newRecord['room_id'] == _currentRoomID) {
+            messages.clear();
+            notifyListeners();
           }
         },
       ).subscribe();
   }
 
-  Future<void> connect(String url) async {
+  Future<void> connect(String url, String roomID) async {
     _serverUrl = _toWsUrl(url);
+    _currentRoomID = roomID;
     status = ConnectionStatus.connecting;
     errorMessage = null;
     notifyListeners();
@@ -81,10 +141,7 @@ class WebSocketService extends ChangeNotifier {
     _setupSupabaseRealtime();
 
     try {
-      debugPrint('Connecting to: $_serverUrl');
-      // Set a generic pingInterval on WebSocketChannel 
-      // Unfortunately package:web_socket_channel's `connect` 
-      // does not support `pingInterval` directly unless you use an IOWebSocketChannel.
+      _channel?.sink.close();
       _channel = WebSocketChannel.connect(Uri.parse(_serverUrl));
       await _channel!.ready;
 
@@ -98,6 +155,7 @@ class WebSocketService extends ChangeNotifier {
         }
       });
 
+      _subscription?.cancel();
       _subscription = _channel!.stream.listen(
         _onData,
         onError: _onError,
@@ -110,41 +168,78 @@ class WebSocketService extends ChangeNotifier {
     }
   }
 
-  void join(String username) {
+  void join(String username, String roomID) {
     _username = username.trim();
+    _currentRoomID = roomID;
     _joined = true;
-    _send(ChatMessage(type: 'join', user: _username));
+    _send(ChatMessage(type: 'join', user: _username, roomID: _currentRoomID));
     notifyListeners();
   }
 
   Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty) return;
+    if (text.trim().isEmpty || _currentRoomID.isEmpty) return;
     
-    // If not joined (e.g. connection dropped), try to reconnect but don't block saving to DB
     if (!_joined && _username.isNotEmpty) {
-       debugPrint('Waiting to reconnect before sending: $_serverUrl');
-       try {
-         await connect(_serverUrl);
-         if (status == ConnectionStatus.connected) {
-           join(_username);
-         }
-       } catch (e) {
-         debugPrint('Reconnect failed during send: $e');
-       }
+       await connect(_serverUrl, _currentRoomID);
+       if (status == ConnectionStatus.connected) join(_username, _currentRoomID);
     }
 
     try {
-      await _supabase.from('messages').insert({
+      final response = await _supabase.from('messages').insert({
         'username': _username,
         'text': text.trim(),
-      });
+        'room_id': _currentRoomID,
+      }).select().single();
+
+      if (_joined) {
+        final msg = ChatMessage(
+          id: response['id'],
+          type: 'message', 
+          user: _username, 
+          text: text.trim(), 
+          roomID: _currentRoomID
+        );
+        _send(msg);
+        if (!messages.any((m) => m.id == msg.id)) {
+          messages.add(msg);
+          notifyListeners();
+        }
+      }
     } catch (e) {
       debugPrint('Error saving to Supabase: $e');
     }
+  }
 
-    if (_joined) {
-      final msg = ChatMessage(type: 'message', user: _username, text: text.trim());
-      _send(msg);
+  Future<void> deleteMessageForMe(int msgId) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+
+      await _supabase.from('user_deleted_messages').insert({
+        'user_id': user.id,
+        'message_id': msgId,
+      });
+      messages.removeWhere((m) => m.id == msgId);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting message: $e');
+    }
+  }
+
+  Future<void> clearRoomForMe() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null || _currentRoomID.isEmpty) return;
+
+      await _supabase.from('user_room_clears').upsert({
+        'user_id': user.id,
+        'room_id': _currentRoomID,
+        'cleared_at': DateTime.now().toIso8601String(),
+      });
+      messages.clear();
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error clearing room: $e');
     }
   }
 
@@ -171,8 +266,11 @@ class WebSocketService extends ChangeNotifier {
     if (_channel == null) return;
     try {
       final jsonStr = jsonEncode(msg.toJson());
-      _channel!.sink.add(jsonStr);
-      debugPrint('Sent WS message: $jsonStr');
+      var map = msg.toJson();
+      if (map.containsKey('roomID')) {
+        map['room_id'] = map.remove('roomID');
+      }
+      _channel!.sink.add(jsonEncode(map));
     } catch (e) {
       debugPrint('Failed to send WS message: $e');
     }
@@ -181,6 +279,9 @@ class WebSocketService extends ChangeNotifier {
   void _onData(dynamic data) {
     try {
       final json = jsonDecode(data as String) as Map<String, dynamic>;
+      if (json.containsKey('room_id')) {
+        json['roomID'] = json.remove('room_id');
+      }
       final msg = ChatMessage.fromJson(json);
 
       if (msg.type == 'users') {
@@ -188,7 +289,7 @@ class WebSocketService extends ChangeNotifier {
           ..clear()
           ..addAll(msg.users ?? []);
       } else if (msg.type == 'message') {
-        if (!messages.any((m) => m.text == msg.text && m.user == msg.user)) {
+        if (msg.roomID == _currentRoomID && !messages.any((m) => m.id == msg.id)) {
            messages.add(msg);
         }
       }

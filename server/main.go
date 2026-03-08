@@ -20,15 +20,17 @@ var upgrader = websocket.Upgrader{
 }
 
 type Message struct {
-	Type  string   `json:"type"`
-	User  string   `json:"user,omitempty"`
-	Text  string   `json:"text,omitempty"`
-	Users []string `json:"users,omitempty"`
+	Type   string   `json:"type"`
+	User   string   `json:"user,omitempty"`
+	Text   string   `json:"text,omitempty"`
+	RoomID string   `json:"room_id,omitempty"`
+	Users  []string `json:"users,omitempty"`
 }
 
 type Client struct {
-	Conn *websocket.Conn
-	User string
+	Conn   *websocket.Conn
+	User   string
+	RoomID string
 }
 
 var (
@@ -51,10 +53,13 @@ func handleConnections(c *gin.Context) {
 
 	defer func() {
 		clientsMu.Lock()
+		roomID := client.RoomID
 		delete(clients, client)
 		clientsMu.Unlock()
 		ws.Close()
-		broadcastUserList()
+		if roomID != "" {
+			broadcastUserList(roomID)
+		}
 	}()
 
 	for {
@@ -67,20 +72,25 @@ func handleConnections(c *gin.Context) {
 		switch msg.Type {
 		case "join":
 			client.User = msg.User
-			broadcastUserList()
+			client.RoomID = msg.RoomID
+			if client.RoomID != "" {
+				broadcastUserList(client.RoomID)
+			}
 		case "message":
-			broadcastMessage(msg)
+			if msg.RoomID != "" {
+				broadcastMessage(msg)
+			}
 		}
 	}
 }
 
-func broadcastUserList() {
+func broadcastUserList(roomID string) {
 	clientsMu.Lock()
 	defer clientsMu.Unlock()
 
 	uniqueUsers := make(map[string]bool)
 	for client := range clients {
-		if client.User != "" {
+		if client.RoomID == roomID && client.User != "" {
 			uniqueUsers[client.User] = true
 		}
 	}
@@ -91,15 +101,18 @@ func broadcastUserList() {
 	}
 
 	msg := Message{
-		Type:  "users",
-		Users: userList,
+		Type:   "users",
+		Users:  userList,
+		RoomID: roomID,
 	}
 
 	for client := range clients {
-		err := client.Conn.WriteJSON(msg)
-		if err != nil {
-			client.Conn.Close()
-			delete(clients, client)
+		if client.RoomID == roomID {
+			err := client.Conn.WriteJSON(msg)
+			if err != nil {
+				client.Conn.Close()
+				delete(clients, client)
+			}
 		}
 	}
 }
@@ -109,10 +122,12 @@ func broadcastMessage(msg Message) {
 	defer clientsMu.Unlock()
 
 	for client := range clients {
-		err := client.Conn.WriteJSON(msg)
-		if err != nil {
-			client.Conn.Close()
-			delete(clients, client)
+		if client.RoomID == msg.RoomID {
+			err := client.Conn.WriteJSON(msg)
+			if err != nil {
+				client.Conn.Close()
+				delete(clients, client)
+			}
 		}
 	}
 }

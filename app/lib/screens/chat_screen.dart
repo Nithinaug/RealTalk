@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import '../services/auth_service.dart';
 import '../services/websocket_service.dart';
 import '../widgets/message_bubble.dart';
@@ -7,7 +8,8 @@ import '../widgets/online_users_sheet.dart';
 import 'login_screen.dart';
 
 class ChatScreen extends StatefulWidget {
-  const ChatScreen({super.key});
+  final String roomID;
+  const ChatScreen({super.key, required this.roomID});
 
   @override
   State<ChatScreen> createState() => _ChatScreenState();
@@ -30,28 +32,36 @@ class _ChatScreenState extends State<ChatScreen> {
     final auth = context.read<AuthService>();
     final ws = context.read<WebSocketService>();
     
-    if (auth.currentUsername != null && ws.status != ConnectionStatus.connected) {
+    if (auth.currentUsername != null && (ws.status != ConnectionStatus.connected || ws.currentRoomID != widget.roomID)) {
+      final appUrl = dotenv.maybeGet('APP_URL') ?? 'https://realtalk-f233.onrender.com';
       final List<String> urlsToTry = [
-        'wss://realtalk-f233.onrender.com/ws', 
-        'ws://10.0.2.2:8080/ws',                     
-        'ws://localhost:8080/ws',                  
+        appUrl,
+        'ws://10.0.2.2:8080/ws',
+        'ws://localhost:8080/ws',
       ];
 
+      String lastError = 'Connection failed';
       for (final url in urlsToTry) {
-        debugPrint('Connecting to: $url');
-        await ws.connect(url);
+        debugPrint('Attempting connection to: $url in room ${widget.roomID}');
+        await ws.connect(url, widget.roomID);
         if (ws.status == ConnectionStatus.connected) {
-          ws.join(auth.currentUsername!);
+          ws.join(auth.currentUsername!, widget.roomID);
           return;
         }
+        lastError = ws.errorMessage ?? 'Failed to connect to $url';
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text(ws.errorMessage ?? 'Connection failed. Check your internet or server.'),
+            content: Text(lastError),
             backgroundColor: Colors.red.shade600,
-            duration: const Duration(seconds: 5),
+            duration: const Duration(seconds: 10),
+            action: SnackBarAction(
+              label: 'Retry',
+              textColor: Colors.white,
+              onPressed: _autoConnect,
+            ),
           ),
         );
       }
@@ -117,19 +127,6 @@ class _ChatScreenState extends State<ChatScreen> {
           );
         }
       });
-    } else if (svc.status == ConnectionStatus.connecting) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).hideCurrentSnackBar();
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Connecting to server...'),
-              backgroundColor: Color(0xFF475569),
-              duration: Duration(seconds: 2),
-            ),
-          );
-        }
-      });
     }
 
     return Scaffold(
@@ -147,18 +144,18 @@ class _ChatScreenState extends State<ChatScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Text(
-                          'Chat Room',
-                          style: TextStyle(
-                            fontSize: 20,
+                        Text(
+                          'Room: ${widget.roomID}',
+                          style: const TextStyle(
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF0F172A),
                           ),
                         ),
                         Text(
-                          'You: ${svc.username}',
+                          'User: ${svc.username}',
                           style: const TextStyle(
-                              fontSize: 13, color: Color(0xFF475569)),
+                              fontSize: 12, color: Color(0xFF475569)),
                         ),
                       ],
                     ),
@@ -168,7 +165,7 @@ class _ChatScreenState extends State<ChatScreen> {
                     onTap: () => setState(() => _usersVisible = !_usersVisible),
                     child: Container(
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 6),
+                          horizontal: 10, vertical: 6),
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
@@ -186,9 +183,9 @@ class _ChatScreenState extends State<ChatScreen> {
                           ),
                           const SizedBox(width: 6),
                           Text(
-                            '${svc.onlineUsers.length} online',
+                            '${svc.onlineUsers.length}',
                             style: const TextStyle(
-                              fontSize: 13,
+                              fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: Color(0xFF0F172A),
                             ),
@@ -197,7 +194,7 @@ class _ChatScreenState extends State<ChatScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
 
                   IconButton(
                     onPressed: () {
@@ -205,7 +202,7 @@ class _ChatScreenState extends State<ChatScreen> {
                         context: context,
                         builder: (ctx) => AlertDialog(
                           title: const Text('Clear Chat?'),
-                          content: const Text('This will clear messages locally. They will reload next time you join.'),
+                          content: const Text('This will clear messages for you in this room. Syncs across your devices.'),
                           actions: [
                             TextButton(
                               onPressed: () => Navigator.pop(ctx),
@@ -213,7 +210,7 @@ class _ChatScreenState extends State<ChatScreen> {
                             ),
                             TextButton(
                               onPressed: () {
-                                svc.clearMessages();
+                                svc.clearRoomForMe();
                                 Navigator.pop(ctx);
                               },
                               child: const Text('Clear', style: TextStyle(color: Colors.red)),
@@ -224,14 +221,14 @@ class _ChatScreenState extends State<ChatScreen> {
                     },
                     icon: const Icon(Icons.delete_sweep_rounded),
                     color: const Color(0xFF475569),
-                    tooltip: 'Clear local messages',
+                    tooltip: 'Clear room for me',
                   ),
 
                   IconButton(
-                    onPressed: _logout,
-                    icon: const Icon(Icons.logout_rounded),
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(Icons.meeting_room_rounded),
                     color: const Color(0xFF475569),
-                    tooltip: 'Logout and exit',
+                    tooltip: 'Leave room',
                   ),
                 ],
               ),
@@ -254,7 +251,7 @@ class _ChatScreenState extends State<ChatScreen> {
                               size: 56, color: Color(0xFFCBD5E1)),
                           SizedBox(height: 12),
                           Text(
-                            'No messages yet.\nSay hello!',
+                            'No messages yet.',
                             textAlign: TextAlign.center,
                             style: TextStyle(
                                 color: Color(0xFF94A3B8), fontSize: 16),
