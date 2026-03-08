@@ -165,7 +165,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     if (data) {
       msgArea.innerHTML = "";
-      data.forEach(m => addMsg(m.username, m.text, m.created_at));
+      const frag = document.createDocumentFragment();
+      data.forEach(m => {
+        const d = createMsgElement(m.username, m.text, m.created_at);
+        frag.appendChild(d);
+      });
+      msgArea.appendChild(frag);
+      msgArea.scrollTop = msgArea.scrollHeight;
     }
   }
 
@@ -227,7 +233,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") sendMessage();
   });
 
-  function addMsg(user, text, timestamp) {
+  function createMsgElement(user, text, timestamp) {
     const d = document.createElement("div");
     d.className = user === myName ? "msg me" : "msg other";
 
@@ -248,12 +254,18 @@ document.addEventListener("DOMContentLoaded", () => {
     d.appendChild(textNode);
     d.appendChild(timeSpan);
 
+    return d;
+  }
+
+  function addMsg(user, text, timestamp) {
+    const d = createMsgElement(user, text, timestamp);
     msgArea.appendChild(d);
     msgArea.scrollTop = msgArea.scrollHeight;
   }
 
   function showUsers(list) {
     usersBox.innerHTML = "";
+    const frag = document.createDocumentFragment();
     list.forEach(name => {
       const item = document.createElement("div");
       item.className = "user-item";
@@ -267,8 +279,9 @@ document.addEventListener("DOMContentLoaded", () => {
 
       item.appendChild(avatar);
       item.appendChild(nameEl);
-      usersBox.appendChild(item);
+      frag.appendChild(item);
     });
+    usersBox.appendChild(frag);
   }
 
   if (client) {
