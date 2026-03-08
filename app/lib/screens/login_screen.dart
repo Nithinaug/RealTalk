@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
 import 'signup_screen.dart';
+import 'chat_screen.dart';
+import 'room_selection_screen.dart';
 import 'chat_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -35,10 +39,23 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoggingIn = false);
 
     if (success) {
-      Navigator.pushReplacement(
-        context,
-        MaterialPageRoute(builder: (_) => const ChatScreen()),
-      );
+      final currentUsername = context.read<AuthService>().currentUsername ?? '';
+      String? lastRoom;
+      if (currentUsername.isNotEmpty) {
+        final prefs = await SharedPreferences.getInstance();
+        final roomsStr = prefs.getString('rooms_$currentUsername') ?? '[]';
+        List<String> rooms = List<String>.from(json.decode(roomsStr));
+        if (rooms.isNotEmpty) lastRoom = rooms.first;
+      }
+      
+      if (!mounted) return;
+      if (lastRoom != null) {
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => ChatScreen(roomID: lastRoom)));
+      } else {
+        Navigator.pushReplacement(
+            context, MaterialPageRoute(builder: (_) => const RoomSelectionScreen()));
+      }
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -86,6 +103,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _usernameCtrl,
+                    textInputAction: TextInputAction.next,
                     decoration: _inputDecoration('Enter your username'),
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Please enter username' : null,
@@ -103,6 +121,8 @@ class _LoginScreenState extends State<LoginScreen> {
                   TextFormField(
                     controller: _passwordCtrl,
                     obscureText: !_isPasswordVisible,
+                    textInputAction: TextInputAction.done,
+                    onFieldSubmitted: (_) => _isLoggingIn ? null : _login(),
                     decoration: _inputDecoration('Enter your password').copyWith(
                       suffixIcon: IconButton(
                         icon: Icon(
