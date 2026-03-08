@@ -261,17 +261,22 @@ document.addEventListener("DOMContentLoaded", () => {
     return d;
   }
 
-  const processedMessages = new Set();
+  const recentMessages = [];
 
   function addMsg(user, text, timestamp) {
-    const sig = `${user}:${text}`;
-    if (processedMessages.has(sig)) return;
+    const now = Date.now();
     
-    processedMessages.add(sig);
-    if (processedMessages.size > 200) {
-      const firstIter = processedMessages.values();
-      processedMessages.delete(firstIter.next().value);
+    // Remove messages older than 2.5 seconds to prevent permanent blocking
+    while (recentMessages.length > 0 && now - recentMessages[0].time > 2500) {
+      recentMessages.shift();
     }
+
+    const sig = `${user}:${text}`;
+    if (recentMessages.some(m => m.sig === sig)) {
+      return; 
+    }
+    
+    recentMessages.push({ sig, time: now });
 
     const d = createMsgElement(user, text, timestamp);
     msgArea.appendChild(d);
