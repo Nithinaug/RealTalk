@@ -77,11 +77,25 @@
         <h1>Join a Room</h1>
         <p>Create a new room or join an existing one</p>
       </div>
-      <div class="room-actions">
+      <div id="room-actions-initial" class="room-actions">
+        <button id="show-create-room-btn" class="btn-primary" style="width: 100%;">Create New Room</button>
+        <div class="divider"><span>OR</span></div>
+        <button id="show-join-room-btn" class="btn-primary" style="width: 100%;">Join Room</button>
+      </div>
+
+      <div id="room-actions-input" class="room-actions" style="display: none;">
+        <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
+          <button id="back-to-room-actions-btn" class="btn-icon" style="padding: 0;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M15 18l-6-6 6-6" />
+            </svg>
+          </button>
+          <span id="room-action-title" style="font-weight: 600; color: #3e4d61;">Enter Room ID</span>
+        </div>
         <div class="input-group">
-          <input type="text" id="join-room-id" placeholder="Enter Room ID (letters/numbers)"
+          <input type="text" id="action-room-id" placeholder="Room ID (letters/numbers)"
             style="text-transform: uppercase;">
-          <button id="join-room-btn" class="btn-primary" style="width: 100%;">Enter Room</button>
+          <button id="confirm-room-btn" class="btn-primary" style="width: 100%;">Continue</button>
         </div>
       </div>
     </div>
@@ -115,6 +129,12 @@
           <h3>My Rooms</h3>
         </div>
         <div id="userRoomsList" class="rooms-list"></div>
+        <div class="panel-footer" style="padding: 20px; border-top: 1px solid var(--border);">
+          <button id="sidebar-add-room-btn" class="btn-primary"
+            style="margin-top: 0; background: white; color: var(--primary); border: 2px solid var(--primary);">
+            + Join / Create
+          </button>
+        </div>
       </aside>
 
       <section class="messages-container">

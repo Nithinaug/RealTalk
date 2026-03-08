@@ -189,6 +189,23 @@ body {
   padding: 8px;
 }
 
+.btn-logout {
+  background: #fef2f2;
+  color: #ef4444;
+  border: 1px solid #fca5a5;
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 14px;
+}
+
+.btn-logout:hover {
+  background: #fee2e2;
+  border-color: #f87171;
+}
+
 .chat-layout {
   flex: 1;
   display: flex;
