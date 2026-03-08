@@ -6,6 +6,9 @@ import '../services/websocket_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/online_users_sheet.dart';
 import 'login_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'dart:convert';
+import 'room_selection_screen.dart';
 
 class ChatScreen extends StatefulWidget {
   final String roomID;
@@ -19,13 +22,33 @@ class _ChatScreenState extends State<ChatScreen> {
   final _msgCtrl = TextEditingController();
   final _scrollCtrl = ScrollController();
   bool _usersVisible = false;
+  List<String> _myRooms = [];
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
     super.initState();
+    _loadRooms();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _autoConnect();
     });
+  }
+
+  Future<void> _loadRooms() async {
+    final prefs = await SharedPreferences.getInstance();
+    final auth = context.read<AuthService>();
+    final username = auth.currentUsername ?? '';
+    if (username.isEmpty) return;
+    
+    final roomsStr = prefs.getString('rooms_$username') ?? '[]';
+    List<String> rooms = List<String>.from(json.decode(roomsStr));
+    
+    if (!rooms.contains(widget.roomID)) {
+      rooms.add(widget.roomID);
+      await prefs.setString('rooms_$username', json.encode(rooms));
+    }
+    
+    if (mounted) setState(() => _myRooms = rooms);
   }
 
   Future<void> _autoConnect() async {
@@ -130,16 +153,81 @@ class _ChatScreenState extends State<ChatScreen> {
     }
 
     return Scaffold(
+      key: _scaffoldKey,
       backgroundColor: const Color(0xFFF8FAFC),
+      drawer: Drawer(
+        child: Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.only(top: 50, bottom: 20, left: 16, right: 16),
+              color: const Color(0xFFA6D6B8),
+              width: double.infinity,
+              child: const Text('My Rooms', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            ),
+            Expanded(
+              child: ListView.builder(
+                padding: EdgeInsets.zero,
+                itemCount: _myRooms.length,
+                itemBuilder: (ctx, i) {
+                  final room = _myRooms[i];
+                  final isActive = room == widget.roomID;
+                  return ListTile(
+                    tileColor: isActive ? const Color(0xFFECFDF5) : null,
+                    title: Text('Room $room', style: TextStyle(fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
+                    subtitle: Text('#$room', style: const TextStyle(fontSize: 12, color: Color(0xFF94A3B8))),
+                    onTap: () {
+                      if (!isActive) {
+                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ChatScreen(roomID: room)));
+                      } else {
+                        Navigator.pop(context); // close drawer
+                      }
+                    },
+                  );
+                },
+              ),
+            ),
+            const Divider(),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const RoomSelectionScreen()));
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: const Color(0xFF22C55E),
+                  side: const BorderSide(color: Color(0xFF22C55E), width: 2),
+                  minimumSize: const Size(double.infinity, 50),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                child: const Text('+ Join / Create Room', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            const Divider(),
+            ListTile(
+              leading: const Icon(Icons.logout, color: Colors.red),
+              title: const Text('Logout', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              onTap: _logout,
+            ),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
       body: SafeArea(
         child: Column(
           children: [
             Container(
               color: const Color(0xFFA6D6B8),
               padding: const EdgeInsets.symmetric(
-                  horizontal: 16, vertical: 14),
+                  horizontal: 8, vertical: 14),
               child: Row(
                 children: [
+                  IconButton(
+                    icon: const Icon(Icons.menu),
+                    onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                  ),
+                  const SizedBox(width: 8),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,

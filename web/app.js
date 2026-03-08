@@ -45,9 +45,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const sendBtn = document.getElementById("send-btn");
   const onlineCount = document.getElementById("online-count");
 
-  const createRoomBtn = document.getElementById("create-room-btn");
-  const joinRoomBtn = document.getElementById("join-room-btn");
-  const joinRoomInput = document.getElementById("join-room-id");
+  const showCreateRoomBtn = document.getElementById("show-create-room-btn");
+  const showJoinRoomBtn = document.getElementById("show-join-room-btn");
+  const roomActionsInitial = document.getElementById("room-actions-initial");
+  const roomActionsInput = document.getElementById("room-actions-input");
+  const backToRoomActionsBtn = document.getElementById("back-to-room-actions-btn");
+  const actionRoomIdInput = document.getElementById("action-room-id");
+  const confirmRoomBtn = document.getElementById("confirm-room-btn");
+  const roomActionTitle = document.getElementById("room-action-title");
+  const sidebarAddRoomBtn = document.getElementById("sidebar-add-room-btn");
 
   showSignup.onclick = (e) => {
     e.preventDefault();
@@ -151,18 +157,60 @@ document.addEventListener("DOMContentLoaded", () => {
   clearChatBtn.onclick = handleClearChat;
   logoutBtn.onclick = handleLogout;
 
-  joinRoomBtn.onclick = () => {
-    const id = joinRoomInput.value.trim().toUpperCase();
+  document.getElementById("login-username").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleLogin();
+  });
+  document.getElementById("login-password").addEventListener("keydown", (e) => {
+    if (e.key === "Enter") handleLogin();
+  });
+
+  function showRoomInput(title) {
+    roomActionsInitial.style.display = "none";
+    roomActionsInput.style.display = "flex";
+    roomActionTitle.textContent = title;
+    actionRoomIdInput.value = "";
+    actionRoomIdInput.focus();
+  }
+
+  function showRoomInitial() {
+    roomActionsInitial.style.display = "flex";
+    roomActionsInput.style.display = "none";
+  }
+
+  showCreateRoomBtn.onclick = () => showRoomInput("Enter Room ID to Create");
+  showJoinRoomBtn.onclick = () => showRoomInput("Enter Room ID to Join");
+  backToRoomActionsBtn.onclick = () => showRoomInitial();
+
+  confirmRoomBtn.onclick = () => {
+    const id = actionRoomIdInput.value.trim().toUpperCase();
     if (!id) return alert("Please enter a Room ID");
     enterRoom(id);
+  };
+
+  actionRoomIdInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") confirmRoomBtn.click();
+  });
+
+  sidebarAddRoomBtn.onclick = () => {
+    mainChat.style.display = "none";
+    roomWrapper.style.display = "flex";
+    showRoomInitial();
   };
 
   async function onAuthenticated(user) {
     myName = user.user_metadata.username || user.email.split('@')[0];
     displayName.textContent = myName;
     authWrapper.style.display = "none";
-    roomWrapper.style.display = "flex";
-    loadUserRooms();
+
+    const rooms = JSON.parse(localStorage.getItem(`rooms_${myName}`) || "[]");
+    if (rooms.length > 0) {
+      loadUserRooms();
+      enterRoom(rooms[0]);
+    } else {
+      roomWrapper.style.display = "flex";
+      showRoomInitial();
+      loadUserRooms();
+    }
   }
 
   function loadUserRooms() {
