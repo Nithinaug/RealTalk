@@ -176,13 +176,8 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function setupRealtime() {
-    client.channel('public:messages')
-      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
-        if (payload.new.username !== myName) {
-          addMsg(payload.new.username, payload.new.text, payload.new.created_at);
-        }
-      })
-      .subscribe();
+    // Optionally use Supabase realtime if configured.
+    // We are currently using the custom WebSocket for real-time messages.
   }
 
   function connectWebSocket() {
@@ -201,6 +196,10 @@ document.addEventListener("DOMContentLoaded", () => {
       if (data.type === "users") {
         showUsers(data.users);
         onlineCount.textContent = `${data.users.length} online`;
+      } else if (data.type === "message") {
+        if (data.user !== myName) {
+          addMsg(data.user, data.text, new Date().toISOString());
+        }
       }
     };
 
