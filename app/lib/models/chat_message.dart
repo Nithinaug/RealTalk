@@ -1,5 +1,5 @@
 class ChatMessage {
-  final int? id;
+  final String? id;
   final String type;
   final String? user;
   final String? text;
@@ -19,7 +19,7 @@ class ChatMessage {
 
   factory ChatMessage.fromJson(Map<String, dynamic> json) {
     return ChatMessage(
-      id: json['id'],
+      id: json['id']?.toString(),
       type: json['type'] ?? '',
       user: json['user'],
       text: json['text'],

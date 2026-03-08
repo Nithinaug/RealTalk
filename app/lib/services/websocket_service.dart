@@ -48,7 +48,7 @@ class WebSocketService extends ChangeNotifier {
           .select('message_id')
           .eq('user_id', user.id);
       
-      final deletedIDs = (deletedData as List).map((d) => d['message_id'] as int).toList();
+      final deletedIDs = (deletedData as List).map((d) => d['message_id'].toString()).toList();
 
       final data = await _supabase
           .from('messages')
@@ -60,9 +60,9 @@ class WebSocketService extends ChangeNotifier {
       
       messages.clear();
       for (var row in data) {
-        if (!deletedIDs.contains(row['id'])) {
+        if (!deletedIDs.contains(row['id'].toString())) {
           messages.add(ChatMessage(
-            id: row['id'],
+            id: row['id'].toString(),
             type: 'message',
             user: row['username'],
             text: row['text'],
@@ -93,7 +93,7 @@ class WebSocketService extends ChangeNotifier {
         ),
         callback: (payload) {
           final newMessage = ChatMessage(
-            id: payload.newRecord['id'],
+            id: payload.newRecord['id'].toString(),
             type: 'message',
             user: payload.newRecord['username'],
             text: payload.newRecord['text'],
@@ -112,7 +112,7 @@ class WebSocketService extends ChangeNotifier {
         schema: 'public',
         table: 'user_deleted_messages',
         callback: (payload) {
-          final msgId = payload.newRecord['message_id'];
+          final msgId = payload.newRecord['message_id'].toString();
           messages.removeWhere((m) => m.id == msgId);
           notifyListeners();
         },
@@ -210,7 +210,7 @@ class WebSocketService extends ChangeNotifier {
     }
   }
 
-  Future<void> deleteMessageForMe(int msgId) async {
+  Future<void> deleteMessageForMe(String msgId) async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) return;
