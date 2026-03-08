@@ -1,7 +1,3 @@
-// lib/widgets/online_users_sheet.dart
-
-import 'package:flutter/material.dart';
-
 class OnlineUsersSheet extends StatelessWidget {
   final List<String> users;
   final String currentUser;
@@ -27,7 +23,6 @@ class OnlineUsersSheet extends StatelessWidget {
       ),
       child: Column(
         children: [
-          // Title row
           Container(
             color: Colors.white,
             padding: const EdgeInsets.symmetric(
@@ -54,7 +49,6 @@ class OnlineUsersSheet extends StatelessWidget {
             ),
           ),
 
-          // User list
           Flexible(
             child: users.isEmpty
                 ? const Padding(
