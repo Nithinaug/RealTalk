@@ -176,8 +176,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   function setupRealtime() {
-    // Optionally use Supabase realtime if configured.
-    // We are currently using the custom WebSocket for real-time messages.
+    client.channel('public:messages')
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+        if (payload.new.username !== myName) {
+          addMsg(payload.new.username, payload.new.text, payload.new.created_at);
+        }
+      })
+      .subscribe();
   }
 
   function connectWebSocket() {
@@ -256,7 +261,18 @@ document.addEventListener("DOMContentLoaded", () => {
     return d;
   }
 
+  const processedMessages = new Set();
+
   function addMsg(user, text, timestamp) {
+    const sig = `${user}:${text}`;
+    if (processedMessages.has(sig)) return;
+    
+    processedMessages.add(sig);
+    if (processedMessages.size > 200) {
+      const firstIter = processedMessages.values();
+      processedMessages.delete(firstIter.next().value);
+    }
+
     const d = createMsgElement(user, text, timestamp);
     msgArea.appendChild(d);
     msgArea.scrollTop = msgArea.scrollHeight;
