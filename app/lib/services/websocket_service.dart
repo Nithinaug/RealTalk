@@ -82,11 +82,21 @@ class WebSocketService extends ChangeNotifier {
 
     try {
       debugPrint('Connecting to: $_serverUrl');
+      // Set a generic pingInterval on WebSocketChannel 
+      // Unfortunately package:web_socket_channel's `connect` 
+      // does not support `pingInterval` directly unless you use an IOWebSocketChannel.
       _channel = WebSocketChannel.connect(Uri.parse(_serverUrl));
       await _channel!.ready;
 
       status = ConnectionStatus.connected;
       notifyListeners();
+
+      _pingTimer?.cancel();
+      _pingTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+        if (_channel != null && status == ConnectionStatus.connected) {
+           _send(ChatMessage(type: 'ping'));
+        }
+      });
 
       _subscription = _channel!.stream.listen(
         _onData,
@@ -95,7 +105,7 @@ class WebSocketService extends ChangeNotifier {
       );
     } catch (e) {
       status = ConnectionStatus.error;
-      errorMessage = 'WebSocket Error: $e. However, Supabase messages may still work.';
+      errorMessage = 'WebSocket Error: $e.';
       notifyListeners();
     }
   }
@@ -108,8 +118,21 @@ class WebSocketService extends ChangeNotifier {
   }
 
   Future<void> sendMessage(String text) async {
-    if (text.trim().isEmpty || !_joined) return;
+    if (text.trim().isEmpty) return;
     
+    // If not joined (e.g. connection dropped), try to reconnect but don't block saving to DB
+    if (!_joined && _username.isNotEmpty) {
+       debugPrint('Waiting to reconnect before sending: $_serverUrl');
+       try {
+         await connect(_serverUrl);
+         if (status == ConnectionStatus.connected) {
+           join(_username);
+         }
+       } catch (e) {
+         debugPrint('Reconnect failed during send: $e');
+       }
+    }
+
     try {
       await _supabase.from('messages').insert({
         'username': _username,
@@ -119,8 +142,10 @@ class WebSocketService extends ChangeNotifier {
       debugPrint('Error saving to Supabase: $e');
     }
 
-    final msg = ChatMessage(type: 'message', user: _username, text: text.trim());
-    _send(msg);
+    if (_joined) {
+      final msg = ChatMessage(type: 'message', user: _username, text: text.trim());
+      _send(msg);
+    }
   }
 
   void clearMessages() {
@@ -128,10 +153,14 @@ class WebSocketService extends ChangeNotifier {
     notifyListeners();
   }
 
+  Timer? _pingTimer;
+
   void disconnect() {
     _subscription?.cancel();
     _channel?.sink.close();
     _supabaseChannel?.unsubscribe();
+    _pingTimer?.cancel();
+    _pingTimer = null;
     _joined = false;
     status = ConnectionStatus.disconnected;
     onlineUsers.clear();
@@ -141,8 +170,12 @@ class WebSocketService extends ChangeNotifier {
   void _send(ChatMessage msg) {
     if (_channel == null) return;
     try {
-      _channel!.sink.add(jsonEncode(msg.toJson()));
-    } catch (_) {}
+      final jsonStr = jsonEncode(msg.toJson());
+      _channel!.sink.add(jsonStr);
+      debugPrint('Sent WS message: $jsonStr');
+    } catch (e) {
+      debugPrint('Failed to send WS message: $e');
+    }
   }
 
   void _onData(dynamic data) {
@@ -195,5 +228,15 @@ class WebSocketService extends ChangeNotifier {
     status = ConnectionStatus.disconnected;
     _joined = false;
     notifyListeners();
+    debugPrint('WebSocket closed. Assuming dropped connection, retrying in 3 seconds...');
+    Future.delayed(const Duration(seconds: 3), () {
+      if (_username.isNotEmpty && status == ConnectionStatus.disconnected) {
+        connect(_serverUrl).then((_) {
+          if (status == ConnectionStatus.connected) {
+            join(_username);
+          }
+        });
+      }
+    });
   }
 }
