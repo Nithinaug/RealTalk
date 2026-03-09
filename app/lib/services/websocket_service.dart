@@ -337,9 +337,12 @@ class WebSocketService extends ChangeNotifier {
       final msg = ChatMessage.fromJson(json);
 
       if (msg.type == 'users') {
-        onlineUsers
-          ..clear()
-          ..addAll(msg.users ?? []);
+        if (msg.roomID == _currentRoomID) {
+          onlineUsers
+            ..clear()
+            ..addAll(msg.users ?? []);
+          notifyListeners();
+        }
       } else if (msg.type == 'message') {
         if (msg.roomID == _currentRoomID && !messages.any((m) => m.id == msg.id)) {
            messages.add(msg);
