@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import '../services/auth_service.dart';
-import '../services/websocket_service.dart';
 import 'chat_screen.dart';
-import 'dart:math';
 
 class RoomSelectionScreen extends StatefulWidget {
   const RoomSelectionScreen({super.key});
@@ -14,32 +13,77 @@ class RoomSelectionScreen extends StatefulWidget {
 
 class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
   final _roomIDCtrl = TextEditingController();
+  final _roomNameCtrl = TextEditingController();
   bool _showInput = false;
-  String _actionType = ''; // 'create' or 'join'
+  String _actionType = ''; 
+  bool _isLoading = false;
 
   void _showRoomInput(String type) {
     setState(() {
       _showInput = true;
       _actionType = type;
       _roomIDCtrl.clear();
+      _roomNameCtrl.clear();
     });
   }
 
-  void _submitAction() {
-    final id = _roomIDCtrl.text.trim().toUpperCase();
+  Future<void> _handleAction() async {
+    final id = _roomIDCtrl.text.trim();
+    final name = _roomNameCtrl.text.trim();
+
     if (id.isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please enter a Room ID')),
-      );
+      _showError('Please enter a Room ID');
       return;
     }
-    _enterRoom(id);
+
+    final validRoomRegex = RegExp(r'^[aA-zZ0-9]+$');
+    if (!validRoomRegex.hasMatch(id)) {
+      _showError('Room ID can only contain letters and numbers.');
+      return;
+    }
+
+    if (_actionType == 'create' && name.isEmpty) {
+      _showError('Please enter a Room Name');
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final supabase = Supabase.instance.client;
+      
+      if (_actionType == 'create') {
+        final existing = await supabase.from('rooms').select('id').eq('id', id).maybeSingle();
+        if (existing != null) {
+          _showError('A room with this ID already exists.');
+          setState(() => _isLoading = false);
+          return;
+        }
+        _enterRoom(id, name);
+      } else {
+        final existing = await supabase.from('rooms').select('id, name').eq('id', id).maybeSingle();
+        if (existing == null) {
+          _showError('Room does not exist. Please check the ID or create a new room.');
+          setState(() => _isLoading = false);
+          return;
+        }
+        _enterRoom(id, existing['name']);
+      }
+    } catch (e) {
+      _showError('An error occurred: $e');
+      setState(() => _isLoading = false);
+    }
   }
 
-  void _enterRoom(String id) {
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
+  }
+
+  void _enterRoom(String id, String name) {
     Navigator.push(
       context,
-      MaterialPageRoute(builder: (_) => ChatScreen(roomID: id)),
+      MaterialPageRoute(builder: (_) => ChatScreen(roomID: id, roomName: name)),
     );
   }
 
@@ -125,20 +169,36 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
                       icon: const Icon(Icons.arrow_back, color: Color(0xFF475569)),
                       onPressed: () => setState(() => _showInput = false),
                     ),
-                    const Text(
-                      'Enter Room ID',
-                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF3E4D61)),
+                    Text(
+                      _actionType == 'create' ? 'Create New Room' : 'Join Room',
+                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF3E4D61)),
                     ),
                   ],
                 ),
                 const SizedBox(height: 16),
+                if (_actionType == 'create') ...[
+                  TextField(
+                    controller: _roomNameCtrl,
+                    decoration: InputDecoration(
+                      hintText: 'Room Name',
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 TextField(
                   controller: _roomIDCtrl,
-                  textCapitalization: TextCapitalization.characters,
+                  obscureText: true,
                   textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _submitAction(),
+                  onSubmitted: (_) => _handleAction(),
                   decoration: InputDecoration(
-                    hintText: 'Room ID (letters/numbers)',
+                    hintText: 'Room ID',
                     filled: true,
                     fillColor: Colors.white,
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -153,13 +213,15 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
                   width: double.infinity,
                   height: 56,
                   child: ElevatedButton(
-                    onPressed: _submitAction,
+                    onPressed: _isLoading ? null : _handleAction,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: const Color(0xFF22C55E),
                       foregroundColor: Colors.white,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                     ),
-                    child: const Text('Continue', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                    child: _isLoading 
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : Text(_actionType == 'create' ? 'Create' : 'Join', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                   ),
                 ),
               ],
@@ -173,6 +235,7 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
   @override
   void dispose() {
     _roomIDCtrl.dispose();
+    _roomNameCtrl.dispose();
     super.dispose();
   }
 }

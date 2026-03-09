@@ -388,7 +388,10 @@ document.addEventListener("DOMContentLoaded", () => {
         .from('user_room_clears')
         .upsert({ user_id: user.id, room_id: currentRoom.id, cleared_at: new Date().toISOString() });
 
-      if (error) return alert("Error: " + error.message);
+      if (error) {
+        console.error("Clear Chat Error:", error);
+        return alert("Failed to clear chat. This might be a permission issue. Please ensure RLS policies are correct.");
+      }
       msgArea.innerHTML = "";
     }
   }
@@ -420,13 +423,14 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const { data: { user } } = await client.auth.getUser();
 
-    const { data: clearData } = await client
+    const { data: clearData, error: clearError } = await client
       .from('user_room_clears')
       .select('cleared_at')
       .eq('user_id', user.id)
       .eq('room_id', currentRoom.id)
-      .single();
+      .maybeSingle();
 
+    if (clearError) console.warn("Notice: No clear-at record found, starting from beginning.");
     const clearedAt = clearData ? clearData.cleared_at : '1970-01-01T00:00:00Z';
 
     const { data: deletedData } = await client
@@ -538,16 +542,22 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!text || !joined || !currentRoom) return;
 
     try {
-      await client.from('messages').insert({
+      const { error } = await client.from('messages').insert({
         username: myName,
         text: text,
         room_id: currentRoom.id
       });
 
+      if (error) {
+        console.error("Save Error:", error);
+        alert("Error saving message to database. It might not persist if you leave the room.");
+      }
+
       addMsg(myName, text, new Date().toISOString());
       msgBox.value = "";
 
       if (socket && socket.readyState === 1) {
+        // Server expects 'room' for broadcasting
         socket.send(JSON.stringify({ type: "message", user: myName, text: text, room: currentRoom.id }));
       }
     } catch (e) {

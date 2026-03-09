@@ -23,7 +23,7 @@ class ChatMessage {
       type: json['type'] ?? '',
       user: json['user'],
       text: json['text'],
-      roomID: json['room_id'],
+      roomID: json['room_id'] ?? json['room'],
       users: json['users'] != null ? List<String>.from(json['users']) : null,
     );
   }
@@ -33,7 +33,10 @@ class ChatMessage {
     if (id != null) map['id'] = id;
     if (user != null) map['user'] = user;
     if (text != null) map['text'] = text;
-    if (roomID != null) map['room_id'] = roomID;
+    if (roomID != null) {
+      map['room_id'] = roomID;
+      map['room'] = roomID; // Send both for compatibility
+    }
     if (users != null) map['users'] = users;
     return map;
   }
