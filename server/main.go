@@ -20,22 +20,23 @@ var upgrader = websocket.Upgrader{
 }
 
 type Message struct {
-	Type   string   `json:"type"`
-	User   string   `json:"user,omitempty"`
-	Text   string   `json:"text,omitempty"`
-	RoomID string   `json:"room_id,omitempty"`
-	Users  []string `json:"users,omitempty"`
+	Type  string   `json:"type"`
+	User  string   `json:"user,omitempty"`
+	Text  string   `json:"text,omitempty"`
+	Room  string   `json:"room,omitempty"`
+	Users []string `json:"users,omitempty"`
 }
 
 type Client struct {
-	Conn   *websocket.Conn
-	User   string
-	RoomID string
+	Conn *websocket.Conn
+	User string
+	Room string
 }
 
 var (
-	clients   = make(map[*Client]bool)
-	clientsMu sync.Mutex
+	// Map of roomID -> map of clients
+	rooms   = make(map[string]map[*Client]bool)
+	roomsMu sync.Mutex
 )
 
 func handleConnections(c *gin.Context) {
@@ -47,18 +48,22 @@ func handleConnections(c *gin.Context) {
 	defer ws.Close()
 
 	client := &Client{Conn: ws}
-	clientsMu.Lock()
-	clients[client] = true
-	clientsMu.Unlock()
 
 	defer func() {
-		clientsMu.Lock()
-		roomID := client.RoomID
-		delete(clients, client)
-		clientsMu.Unlock()
+		roomsMu.Lock()
+		if client.Room != "" {
+			if roomClients, ok := rooms[client.Room]; ok {
+				delete(roomClients, client)
+				if len(roomClients) == 0 {
+					delete(rooms, client.Room)
+				}
+			}
+		}
+		roomsMu.Unlock()
 		ws.Close()
-		if roomID != "" {
-			broadcastUserList(roomID)
+		
+		if client.Room != "" {
+			broadcastUserList(client.Room)
 		}
 	}()
 
@@ -72,28 +77,55 @@ func handleConnections(c *gin.Context) {
 		switch msg.Type {
 		case "join":
 			client.User = msg.User
-			client.RoomID = msg.RoomID
-			if client.RoomID != "" {
-				broadcastUserList(client.RoomID)
+			client.Room = msg.Room
+			
+			roomsMu.Lock()
+			if rooms[client.Room] == nil {
+				rooms[client.Room] = make(map[*Client]bool)
 			}
+			rooms[client.Room][client] = true
+			roomsMu.Unlock()
+			
+			broadcastUserList(client.Room)
+			
+		case "leave":
+			roomsMu.Lock()
+			if roomClients, ok := rooms[msg.Room]; ok {
+				delete(roomClients, client)
+				if len(roomClients) == 0 {
+					delete(rooms, msg.Room)
+				}
+			}
+			roomsMu.Unlock()
+			
+			client.Room = ""
+			broadcastUserList(msg.Room)
+			
 		case "message":
-			if msg.RoomID != "" {
-				broadcastMessage(msg)
+			// Ensure message has room context
+			if msg.Room == "" {
+				msg.Room = client.Room
 			}
+			broadcastMessage(msg)
 		}
 	}
 }
 
 func broadcastUserList(roomID string) {
-	clientsMu.Lock()
-	defer clientsMu.Unlock()
-
+	if roomID == "" {
+		return
+	}
+	
+	roomsMu.Lock()
+	roomClients := rooms[roomID]
+	
 	uniqueUsers := make(map[string]bool)
-	for client := range clients {
-		if client.RoomID == roomID && client.User != "" {
+	for client := range roomClients {
+		if client.User != "" {
 			uniqueUsers[client.User] = true
 		}
 	}
+	roomsMu.Unlock()
 
 	var userList []string
 	for user := range uniqueUsers {
@@ -101,33 +133,36 @@ func broadcastUserList(roomID string) {
 	}
 
 	msg := Message{
-		Type:   "users",
-		Users:  userList,
-		RoomID: roomID,
+		Type:  "users",
+		Users: userList,
+		Room:  roomID,
 	}
 
-	for client := range clients {
-		if client.RoomID == roomID {
-			err := client.Conn.WriteJSON(msg)
-			if err != nil {
-				client.Conn.Close()
-				delete(clients, client)
-			}
+	roomsMu.Lock()
+	defer roomsMu.Unlock()
+	for client := range rooms[roomID] {
+		err := client.Conn.WriteJSON(msg)
+		if err != nil {
+			client.Conn.Close()
+			delete(rooms[roomID], client)
 		}
 	}
 }
 
 func broadcastMessage(msg Message) {
-	clientsMu.Lock()
-	defer clientsMu.Unlock()
+	if msg.Room == "" {
+		return
+	}
+	
+	roomsMu.Lock()
+	defer roomsMu.Unlock()
 
-	for client := range clients {
-		if client.RoomID == msg.RoomID {
-			err := client.Conn.WriteJSON(msg)
-			if err != nil {
-				client.Conn.Close()
-				delete(clients, client)
-			}
+	roomClients := rooms[msg.Room]
+	for client := range roomClients {
+		err := client.Conn.WriteJSON(msg)
+		if err != nil {
+			client.Conn.Close()
+			delete(roomClients, client)
 		}
 	}
 }

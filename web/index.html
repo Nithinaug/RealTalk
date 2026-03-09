@@ -74,42 +74,65 @@
   <div id="room-selection-container" class="auth-wrapper" style="display: none;">
     <div class="auth-card">
       <div class="auth-header">
-        <h1>Join a Room</h1>
-        <p>Create a new room or join an existing one</p>
-      </div>
-      <div id="room-actions-initial" class="room-actions">
-        <button id="show-create-room-btn" class="btn-primary" style="width: 100%;">Create New Room</button>
-        <div class="divider"><span>OR</span></div>
-        <button id="show-join-room-btn" class="btn-primary" style="width: 100%;">Join Room</button>
+        <div class="app-icon" style="margin-bottom: 12px;">
+          <svg width="48" height="48" viewBox="0 0 24 24" fill="#22c55e" xmlns="http://www.w3.org/2000/svg">
+            <path
+              d="M17 10H7C5.89543 10 5 10.8954 5 12V20C5 21.1046 5.89543 22 7 22H17C18.1046 22 19 21.1046 19 20V12C19 10.8954 18.1046 10 17 10Z"
+              fill-opacity="0.3" />
+            <path
+              d="M16 22V9C16 6.79086 14.2091 5 12 5C9.79086 5 8 6.79086 8 9V22M17 10H7C5.89543 10 5 10.8954 5 12V20C5 21.1046 5.89543 22 7 22H17C18.1046 22 19 21.1046 19 20V12C19 10.8954 18.1046 10 17 10Z"
+              stroke="#22c55e" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+          </svg>
+        </div>
+        <h1>Rooms</h1>
+        <p>Create or join a room to start talking.</p>
       </div>
 
-      <div id="room-actions-input" class="room-actions" style="display: none;">
-        <div style="display: flex; align-items: center; margin-bottom: 12px; gap: 8px;">
-          <button id="back-to-room-actions-btn" class="btn-icon" style="padding: 0;">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <path d="M15 18l-6-6 6-6" />
-            </svg>
-          </button>
-          <span id="room-action-title" style="font-weight: 600; color: #3e4d61;">Enter Room ID</span>
+      <div id="rooms-list-view">
+        <div id="joined-rooms-list" class="rooms-grid">
+          <!-- Joined rooms populated here -->
         </div>
+
+        <div class="room-action-buttons">
+          <button id="show-create-room" class="btn-primary room-btn">Create Room</button>
+          <button id="show-join-room" class="btn-secondary room-btn">Join Room</button>
+        </div>
+      </div>
+
+      <div id="create-room-view" style="display: none;">
         <div class="input-group">
-          <input type="text" id="action-room-id" placeholder="Room ID (letters/numbers)"
-            style="text-transform: uppercase;">
-          <button id="confirm-room-btn" class="btn-primary" style="width: 100%;">Continue</button>
+          <label for="create-room-id">Create Room ID (Letters/Numbers)</label>
+          <input type="text" id="create-room-id" placeholder="e.g. secretbase">
         </div>
+        <button id="create-room-submit" class="btn-primary">Create</button>
+        <button class="btn-text-only back-to-rooms">Cancel</button>
+      </div>
+
+      <div id="join-room-view" style="display: none;">
+        <div class="input-group">
+          <label for="join-room-id">Enter Room ID</label>
+          <input type="text" id="join-room-id" placeholder="Room ID">
+        </div>
+        <button id="join-room-submit" class="btn-primary">Join</button>
+        <button class="btn-text-only back-to-rooms">Cancel</button>
       </div>
     </div>
   </div>
 
   <div id="main-chat" class="chat-wrapper" style="display: none;">
     <header class="chat-header">
-      <div class="chat-info">
-        <div class="header-info">
-          <div class="room-title">
-            <h2 id="display-room-id">#ROOM</h2>
-            <div id="online-count" class="online-indicator">0 online</div>
+      <div class="chat-info" style="display: flex; gap: 16px; align-items: center;">
+        <button id="back-to-rooms-nav" class="btn-icon" title="Back to Rooms">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M15 18l-6-6 6-6" />
+          </svg>
+        </button>
+        <div>
+          <h2 id="current-room-name">Chat Room</h2>
+          <div class="status-badge">
+            <span class="status-dot"></span>
+            <span id="online-count">0 online</span>
           </div>
-          <div class="user-meta">User: <span id="display-name"></span></div>
         </div>
       </div>
       <div class="header-actions">
