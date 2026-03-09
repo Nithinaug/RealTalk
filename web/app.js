@@ -53,14 +53,17 @@ document.addEventListener("DOMContentLoaded", () => {
   const sidebarAddRoomBtn = document.getElementById("sidebar-add-room-btn");
   const authBackToLoginBtn = document.getElementById("auth-back-to-login");
 
+  const createRoomNameInput = document.getElementById("create-room-name");
+  const createRoomIdInput = document.getElementById("create-room-id");
+  const joinRoomNameInput = document.getElementById("join-room-name");
+  const joinRoomIdInput = document.getElementById("join-room-id");
+
   const toggleLoginPass = document.getElementById("toggle-login-password");
   const loginPassInput = document.getElementById("login-password");
   const toggleSignupPass = document.getElementById("toggle-signup-password");
   const signupPassInput = document.getElementById("signup-password");
   const toggleCreateRoomId = document.getElementById("toggle-create-room-id");
-  const createRoomIdInput = document.getElementById("create-room-id");
   const toggleJoinRoomId = document.getElementById("toggle-join-room-id");
-  const joinRoomIdInput = document.getElementById("join-room-id");
 
   function setupPasswordToggle(toggleBtn, inputField) {
     if (!toggleBtn || !inputField) return;
@@ -69,10 +72,10 @@ document.addEventListener("DOMContentLoaded", () => {
       const isPassword = inputField.type === "password";
       inputField.type = isPassword ? "text" : "password";
       
-      const openPath = toggleBtn.querySelector(".eye-open");
+      const openElements = toggleBtn.querySelectorAll(".eye-open");
       const closedLine = toggleBtn.querySelector(".eye-closed");
-      if (openPath && closedLine) {
-        openPath.style.display = isPassword ? "none" : "block";
+      if (openElements && closedLine) {
+        openElements.forEach(el => el.style.display = isPassword ? "none" : "block");
         closedLine.style.display = isPassword ? "block" : "none";
       }
     };
