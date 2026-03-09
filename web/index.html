@@ -85,7 +85,6 @@
           </svg>
         </div>
         <h1>Rooms</h1>
-        <p>Create or join a room to start talking.</p>
       </div>
 
       <div id="rooms-list-view">
@@ -101,8 +100,12 @@
 
       <div id="create-room-view" style="display: none;">
         <div class="input-group">
-          <label for="create-room-id">Create Room ID (Letters/Numbers)</label>
-          <input type="text" id="create-room-id" placeholder="e.g. secretbase">
+          <label for="create-room-name">Room Name</label>
+          <input type="text" id="create-room-name" placeholder="e.g. My Secret Base">
+        </div>
+        <div class="input-group">
+          <label for="create-room-id">Room ID (Password)</label>
+          <input type="text" id="create-room-id" placeholder="e.g. secret123">
         </div>
         <button id="create-room-submit" class="btn-primary">Create</button>
         <button class="btn-text-only back-to-rooms">Cancel</button>
@@ -110,7 +113,11 @@
 
       <div id="join-room-view" style="display: none;">
         <div class="input-group">
-          <label for="join-room-id">Enter Room ID</label>
+          <label for="join-room-name">Room Name (Label)</label>
+          <input type="text" id="join-room-name" placeholder="e.g. My Secret Base">
+        </div>
+        <div class="input-group">
+          <label for="join-room-id">Room ID (Password)</label>
           <input type="text" id="join-room-id" placeholder="Room ID">
         </div>
         <button id="join-room-submit" class="btn-primary">Join</button>

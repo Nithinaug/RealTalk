@@ -20,7 +20,6 @@ try {
 
 let socket;
 let myName = "";
-let currentRoomID = "";
 let joined = false;
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -56,21 +55,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const createRoomView = document.getElementById("create-room-view");
   const joinRoomView = document.getElementById("join-room-view");
   const joinedRoomsList = document.getElementById("joined-rooms-list");
+
+  const createRoomNameInput = document.getElementById("create-room-name");
   const createRoomIdInput = document.getElementById("create-room-id");
+  const joinRoomNameInput = document.getElementById("join-room-name");
   const joinRoomIdInput = document.getElementById("join-room-id");
-  const currentRoomName = document.getElementById("current-room-name");
+
+  const currentRoomDisplayName = document.getElementById("current-room-name");
+  const sidebarAddRoomBtn = document.getElementById("sidebar-add-room-btn");
 
   let currentRoom = null;
   let realtimeChannel = null;
 
-  // --- UI Toggles for Room Views ---
   function showRoomList() {
     roomsListView.style.display = "flex";
     createRoomView.style.display = "none";
     joinRoomView.style.display = "none";
-    
-    // Clear inputs
+
+    createRoomNameInput.value = "";
     createRoomIdInput.value = "";
+    joinRoomNameInput.value = "";
     joinRoomIdInput.value = "";
 
     renderJoinedRooms();
@@ -93,10 +97,10 @@ document.addEventListener("DOMContentLoaded", () => {
   backToRoomsNav.onclick = () => {
     mainChat.style.display = "none";
     roomSelectionContainer.style.display = "flex";
-    
+
     // Cleanup chat state
     if (socket && socket.readyState === 1) {
-      socket.send(JSON.stringify({ type: "leave", user: myName, room: currentRoom }));
+      socket.send(JSON.stringify({ type: "leave", user: myName, room: currentRoom ? currentRoom.id : "" }));
     }
     if (realtimeChannel) {
       realtimeChannel.unsubscribe();
@@ -107,68 +111,95 @@ document.addEventListener("DOMContentLoaded", () => {
     msgArea.innerHTML = "";
     onlineCount.textContent = "0 online";
     usersBox.innerHTML = "";
-    
+
     showRoomList();
   };
 
-  // --- LocalStorage for Joined Rooms ---
+  sidebarAddRoomBtn.onclick = () => {
+    mainChat.style.display = "none";
+    roomSelectionContainer.style.display = "flex";
+    showRoomList();
+  };
+
   function getJoinedRooms() {
     const saved = localStorage.getItem("realTalk_joinedRooms");
-    return saved ? JSON.parse(saved) : [];
+    const rooms = saved ? JSON.parse(saved) : [];
+
+    return rooms.map(r => typeof r === 'string' ? { id: r, name: r } : r);
   }
 
-  function saveJoinedRoom(roomId) {
+  function saveJoinedRoom(id, name) {
     let rooms = getJoinedRooms();
-    if (!rooms.includes(roomId)) {
-      rooms.push(roomId);
+    if (!rooms.find(r => r.id === id)) {
+      rooms.push({ id, name });
       localStorage.setItem("realTalk_joinedRooms", JSON.stringify(rooms));
     }
   }
 
   function renderJoinedRooms() {
     const rooms = getJoinedRooms();
+
+    const activeId = currentRoom ? currentRoom.id : null;
+
     joinedRoomsList.innerHTML = "";
-    
     if (rooms.length === 0) {
       joinedRoomsList.style.display = "none";
     } else {
       joinedRoomsList.style.display = "grid";
-      const frag = document.createDocumentFragment();
-      rooms.forEach(roomId => {
+      rooms.forEach(room => {
         const card = document.createElement("div");
         card.className = "room-card";
-        card.onclick = () => joinRoom(roomId);
-        
+        if (room.id === activeId) card.classList.add("active");
+        card.onclick = () => joinRoom(room.id, room.name);
+
         const icon = document.createElement("div");
         icon.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`;
-        
+
         const nameSpan = document.createElement("span");
-        nameSpan.textContent = roomId;
-        
+        nameSpan.textContent = room.name;
+
         card.appendChild(icon);
         card.appendChild(nameSpan);
-        frag.appendChild(card);
+        joinedRoomsList.appendChild(card);
       });
-      joinedRoomsList.appendChild(frag);
     }
+
+    // 2. Populate Sidebar List
+    roomsBox.innerHTML = "";
+    rooms.forEach(room => {
+      const item = document.createElement("div");
+      item.className = "room-item";
+      if (room.id === activeId) item.classList.add("active");
+
+      item.onclick = () => {
+        if (activeId !== room.id) joinRoom(room.id, room.name);
+      };
+
+      item.innerHTML = `
+        <span class="room-name">${room.name}</span>
+        <span class="room-id">ID: ${room.id}</span>
+      `;
+      roomsBox.appendChild(item);
+    });
   }
 
-  async function joinRoom(roomId) {
-    if (!roomId) return;
-    
-    // validate alphanumeric using regex
+  async function joinRoom(id, name) {
+    if (!id || !name) return;
+
     const validRoomRegex = /^[a-zA-Z0-9]+$/;
-    if (!validRoomRegex.test(roomId)) {
-      return alert("Room ID can only contain letters and numbers.");
+    if (!validRoomRegex.test(id)) {
+      return alert("Room ID (Password) can only contain letters and numbers.");
     }
 
-    currentRoom = roomId;
-    saveJoinedRoom(roomId);
-    
-    currentRoomName.textContent = `Room: ${roomId}`;
+    currentRoom = { id, name };
+    saveJoinedRoom(id, name);
+
+    currentRoomDisplayName.textContent = `Room: ${name}`;
     roomSelectionContainer.style.display = "none";
     mainChat.style.display = "flex";
     joined = true;
+
+    renderJoinedRooms(); // Refresh sidebar highlight
 
     try {
       await fetchHistory();
@@ -180,8 +211,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  createRoomSubmit.onclick = () => joinRoom(createRoomIdInput.value.trim());
-  joinRoomSubmit.onclick = () => joinRoom(joinRoomIdInput.value.trim());
+  createRoomSubmit.onclick = () => joinRoom(createRoomIdInput.value.trim(), createRoomNameInput.value.trim());
+  joinRoomSubmit.onclick = () => joinRoom(joinRoomIdInput.value.trim(), joinRoomNameInput.value.trim());
 
   createRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") createRoomSubmit.click(); });
   joinRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") joinRoomSubmit.click(); });
@@ -296,45 +327,14 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") handleLogin();
   });
 
-  function showRoomInput(title) {
-    roomActionsInitial.style.display = "none";
-    roomActionsInput.style.display = "flex";
-    roomActionTitle.textContent = title;
-    actionRoomIdInput.value = "";
-    actionRoomIdInput.focus();
-  }
-
-  function showRoomInitial() {
-    roomActionsInitial.style.display = "flex";
-    roomActionsInput.style.display = "none";
-  }
-
-  showCreateRoomBtn.onclick = () => showRoomInput("Enter Room ID to Create");
-  showJoinRoomBtn.onclick = () => showRoomInput("Enter Room ID to Join");
-  backToRoomActionsBtn.onclick = () => showRoomInitial();
-
-  confirmRoomBtn.onclick = () => {
-    const id = actionRoomIdInput.value.trim().toUpperCase();
-    if (!id) return alert("Please enter a Room ID");
-    enterRoom(id);
-  };
-
-  actionRoomIdInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter") confirmRoomBtn.click();
-  });
-
-  sidebarAddRoomBtn.onclick = () => {
-    mainChat.style.display = "none";
-    roomWrapper.style.display = "flex";
-    showRoomInitial();
-  };
+  /
 
   async function onAuthenticated(user) {
     myName = user.user_metadata.username || user.email.split('@')[0];
     displayName.textContent = myName;
     authWrapper.style.display = "none";
-    
-    // Show room selection instead of main chat
+
+
     roomSelectionContainer.style.display = "flex";
     showRoomList();
   }
@@ -348,7 +348,7 @@ document.addEventListener("DOMContentLoaded", () => {
       .from('user_room_clears')
       .select('cleared_at')
       .eq('user_id', user.id)
-      .eq('room_id', currentRoom)
+      .eq('room_id', currentRoom.id)
       .single();
 
     const clearedAt = clearData ? clearData.cleared_at : '1970-01-01T00:00:00Z';
@@ -363,7 +363,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const { data, error } = await client
       .from('messages')
       .select('*')
-      .eq('room_id', currentRoom)
+      .eq('room_id', currentRoom.id)
       .gt('created_at', clearedAt)
       .order('created_at', { ascending: true })
       .limit(100);
@@ -388,13 +388,13 @@ document.addEventListener("DOMContentLoaded", () => {
     if (realtimeChannel) {
       realtimeChannel.unsubscribe();
     }
-    
-    realtimeChannel = client.channel(`public:messages:room:${currentRoom}`)
-      .on('postgres_changes', { 
-        event: 'INSERT', 
-        schema: 'public', 
+
+    realtimeChannel = client.channel(`public:messages:room:${currentRoom.id}`)
+      .on('postgres_changes', {
+        event: 'INSERT',
+        schema: 'public',
         table: 'messages',
-        filter: `room_id=eq.${currentRoom}`
+        filter: `room_id=eq.${currentRoom.id}`
       }, payload => {
         if (payload.new.username !== myName) {
           addMsg(payload.new.username, payload.new.text, payload.new.created_at, payload.new.id);
@@ -413,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
         schema: 'public',
         table: 'user_room_clears'
       }, payload => {
-        if (payload.new.room_id === currentRoom) {
+        if (payload.new.room_id === currentRoom.id) {
           msgArea.innerHTML = "";
         }
       })
@@ -424,28 +424,27 @@ document.addEventListener("DOMContentLoaded", () => {
     if (socket && socket.readyState !== WebSocket.CLOSED) {
       socket.close();
     }
-    
+
     const proto = location.protocol === "https:" ? "wss" : "ws";
     const host = location.host;
     socket = new WebSocket(`${proto}://${host}/ws`);
 
     socket.onopen = () => {
       if (myName && joined && currentRoom) {
-        socket.send(JSON.stringify({ type: "join", user: myName, room: currentRoom }));
+        socket.send(JSON.stringify({ type: "join", user: myName, room: currentRoom.id }));
       }
     };
 
     socket.onmessage = e => {
       const data = JSON.parse(e.data);
-      
-      // Ensure we only process messages for current room
-      if (data.room && data.room !== currentRoom) return;
-      
+
+      if (data.room && data.room !== currentRoom.id) return;
+
       if (data.type === "users") {
         showUsers(data.users);
         onlineCount.textContent = `${data.users.length} online`;
       } else if (data.type === "message") {
-        if (data.user !== myName && data.room === currentRoom) {
+        if (data.user !== myName && data.room === currentRoom.id) {
           addMsg(data.user, data.text, new Date().toISOString());
         }
       }
@@ -463,17 +462,17 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!text || !joined || !currentRoom) return;
 
     try {
-      await client.from('messages').insert({ 
-        username: myName, 
+      await client.from('messages').insert({
+        username: myName,
         text: text,
-        room_id: currentRoom 
+        room_id: currentRoom.id
       });
-      
+
       addMsg(myName, text, new Date().toISOString());
       msgBox.value = "";
 
       if (socket && socket.readyState === 1) {
-        socket.send(JSON.stringify({ type: "message", user: myName, text: text, room: currentRoom }));
+        socket.send(JSON.stringify({ type: "message", user: myName, text: text, room: currentRoom.id }));
       }
     } catch (e) {
       console.error(e);
