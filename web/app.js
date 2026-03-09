@@ -15,6 +15,7 @@ try {
 
   client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } catch (e) {
+  console.error("Supabase Init Error:", e);
   configError = e.message;
 }
 
@@ -40,7 +41,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const usersBox = document.getElementById("onlineUsers");
   const roomsBox = document.getElementById("userRoomsList");
   const displayName = document.getElementById("display-name");
-  const displayRoomID = document.getElementById("display-room-id");
   const sendBtn = document.getElementById("send-btn");
   const onlineCount = document.getElementById("online-count");
 
@@ -164,7 +164,6 @@ document.addEventListener("DOMContentLoaded", () => {
       });
     }
 
-    // 2. Populate Sidebar List
     roomsBox.innerHTML = "";
     rooms.forEach(room => {
       const item = document.createElement("div");
@@ -308,7 +307,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const { data: { user } } = await client.auth.getUser();
       const { error } = await client
         .from('user_room_clears')
-        .upsert({ user_id: user.id, room_id: currentRoom, cleared_at: new Date().toISOString() });
+        .upsert({ user_id: user.id, room_id: currentRoom.id, cleared_at: new Date().toISOString() });
 
       if (error) return alert("Error: " + error.message);
       msgArea.innerHTML = "";
@@ -327,7 +326,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") handleLogin();
   });
 
-  /
+  // onAuthenticated logic
 
   async function onAuthenticated(user) {
     myName = user.user_metadata.username || user.email.split('@')[0];
