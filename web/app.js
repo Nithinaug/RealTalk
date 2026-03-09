@@ -58,34 +58,6 @@ document.addEventListener("DOMContentLoaded", () => {
   const joinRoomNameInput = document.getElementById("join-room-name");
   const joinRoomIdInput = document.getElementById("join-room-id");
 
-  const toggleLoginPass = document.getElementById("toggle-login-password");
-  const loginPassInput = document.getElementById("login-password");
-  const toggleSignupPass = document.getElementById("toggle-signup-password");
-  const signupPassInput = document.getElementById("signup-password");
-  const toggleCreateRoomId = document.getElementById("toggle-create-room-id");
-  const toggleJoinRoomId = document.getElementById("toggle-join-room-id");
-
-  function setupPasswordToggle(toggleBtn, inputField) {
-    if (!toggleBtn || !inputField) return;
-    toggleBtn.onclick = (e) => {
-      e.stopPropagation();
-      const isPassword = inputField.type === "password";
-      inputField.type = isPassword ? "text" : "password";
-      
-      const openElements = toggleBtn.querySelectorAll(".eye-open");
-      const closedLine = toggleBtn.querySelector(".eye-closed");
-      if (openElements && closedLine) {
-        openElements.forEach(el => el.style.display = isPassword ? "none" : "block");
-        closedLine.style.display = isPassword ? "block" : "none";
-      }
-    };
-  }
-
-  setupPasswordToggle(toggleLoginPass, loginPassInput);
-  setupPasswordToggle(toggleSignupPass, signupPassInput);
-  setupPasswordToggle(toggleCreateRoomId, createRoomIdInput);
-  setupPasswordToggle(toggleJoinRoomId, joinRoomIdInput);
-
   authBackToLoginBtn.onclick = () => {
     roomSelectionContainer.style.display = "none";
     authWrapper.style.display = "flex";
@@ -165,7 +137,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function saveJoinedRoom(id, name) {
     const { data: { user } } = await client.auth.getUser();
-    
+
     // Check if room exists
     const { data: roomExists } = await client
       .from('rooms')
@@ -246,10 +218,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function deleteRoom(id) {
     if (!confirm("Are you sure you want to delete this room for everyone?")) return;
-    const { error } = await client.from('rooms').delete().eq('id', id);
-    if (error) return alert("Error deleting room: " + error.message);
-    if (currentRoom && currentRoom.id === id) backToRoomsNav.click();
-    renderJoinedRooms();
+    try {
+      const { error } = await client.from('rooms').delete().eq('id', id);
+      if (error) {
+        console.error("Delete Error:", error);
+        return alert("Error deleting room. This might happen if you don't have permission or if the room is already gone.");
+      }
+      if (currentRoom && currentRoom.id === id) backToRoomsNav.click();
+      renderJoinedRooms();
+    } catch (err) {
+      console.error("Delete Exception:", err);
+      alert("An unexpected error occurred while deleting the room.");
+    }
   }
 
   async function exitRoom(id) {
@@ -266,7 +246,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const validRoomRegex = /^[a-zA-Z0-9]+$/;
     if (!validRoomRegex.test(id)) {
-      return alert("Room ID (Password) can only contain letters and numbers.");
+      return alert("Room ID can only contain letters and numbers.");
     }
 
     try {
@@ -288,8 +268,29 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  createRoomSubmit.onclick = () => joinRoom(createRoomIdInput.value.trim(), createRoomNameInput.value.trim());
-  joinRoomSubmit.onclick = () => joinRoom(joinRoomIdInput.value.trim(), joinRoomNameInput.value.trim());
+  async function handleCreateRoom() {
+    const id = createRoomIdInput.value.trim();
+    const name = createRoomNameInput.value.trim();
+    if (!id || !name) return alert("Please enter both Room Name and Room ID.");
+
+    const { data: existing } = await client.from('rooms').select('id').eq('id', id).maybeSingle();
+    if (existing) return alert("A room with this ID already exists. Please choose a different ID.");
+
+    joinRoom(id, name);
+  }
+
+  async function handleJoinRoom() {
+    const id = joinRoomIdInput.value.trim();
+    if (!id) return alert("Please enter the Room ID.");
+
+    const { data: existing } = await client.from('rooms').select('id, name').eq('id', id).maybeSingle();
+    if (!existing) return alert("Room does not exist. Please check the ID or create a new room.");
+
+    joinRoom(id, existing.name);
+  }
+
+  createRoomSubmit.onclick = handleCreateRoom;
+  joinRoomSubmit.onclick = handleJoinRoom;
 
   createRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") createRoomSubmit.click(); });
   joinRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") joinRoomSubmit.click(); });
@@ -404,7 +405,6 @@ document.addEventListener("DOMContentLoaded", () => {
     if (e.key === "Enter") handleLogin();
   });
 
-  // onAuthenticated logic
 
   async function onAuthenticated(user) {
     myName = user.user_metadata.username || user.email.split('@')[0];
