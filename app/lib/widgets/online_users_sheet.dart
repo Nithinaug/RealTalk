@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 class OnlineUsersSheet extends StatelessWidget {
   final List<String> users;
   final String currentUser;
@@ -48,7 +50,6 @@ class OnlineUsersSheet extends StatelessWidget {
               ],
             ),
           ),
-
           Flexible(
             child: users.isEmpty
                 ? const Padding(

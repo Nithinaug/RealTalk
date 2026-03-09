@@ -4,12 +4,9 @@ import 'package:provider/provider.dart';
 import 'services/websocket_service.dart';
 import 'services/auth_service.dart';
 import 'screens/room_selection_screen.dart';
-import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -54,35 +51,14 @@ class ChatApp extends StatelessWidget {
   }
 }
 
-class AuthWrapper extends StatefulWidget {
+class AuthWrapper extends StatelessWidget {
   const AuthWrapper({super.key});
-
-  @override
-  State<AuthWrapper> createState() => _AuthWrapperState();
-}
-
-class _AuthWrapperState extends State<AuthWrapper> {
-  String? _lastRoom;
-  bool _checkedPrefs = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkPrefs();
-  }
-
-  Future<void> _checkPrefs() async {
-    final prefs = await SharedPreferences.getInstance();
-    // Assuming auth state is accessible via context.read when we get to build
-    // but SharedPreferences async fetch happens first.
-    setState(() => _checkedPrefs = true);
-  }
 
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthService>();
 
-    if (auth.isLoading || !_checkedPrefs) {
+    if (auth.isLoading) {
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
@@ -90,21 +66,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
     if (!auth.isAuthenticated) {
       return const LoginScreen();
-    }
-
-    final username = auth.currentUsername ?? '';
-    if (username.isNotEmpty) {
-      SharedPreferences.getInstance().then((prefs) {
-        final roomsStr = prefs.getString('rooms_$username') ?? '[]';
-        List<String> rooms = List<String>.from(json.decode(roomsStr));
-        if (rooms.isNotEmpty && _lastRoom != rooms.first && mounted) {
-          setState(() => _lastRoom = rooms.first);
-        }
-      });
-    }
-
-    if (_lastRoom != null) {
-      return ChatScreen(roomID: _lastRoom!);
     }
 
     return const RoomSelectionScreen();

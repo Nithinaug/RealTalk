@@ -22,6 +22,7 @@ class WebSocketService extends ChangeNotifier {
   String _serverUrl = '';
   String _username = '';
   String _currentRoomID = '';
+  String _currentRoomName = '';
   bool _joined = false;
 
   bool get isJoined => _joined;
@@ -122,7 +123,10 @@ class WebSocketService extends ChangeNotifier {
         schema: 'public',
         table: 'user_room_clears',
         callback: (payload) {
-          if (payload.newRecord['room_id'] == _currentRoomID) {
+          final user = _supabase.auth.currentUser;
+          if (user != null && 
+              payload.newRecord['room_id'] == _currentRoomID && 
+              payload.newRecord['user_id'] == user.id) {
             messages.clear();
             notifyListeners();
           }
@@ -168,12 +172,64 @@ class WebSocketService extends ChangeNotifier {
     }
   }
 
-  void join(String username, String roomID) {
+  Future<void> join(String username, String roomID, String roomName) async {
     _username = username.trim();
     _currentRoomID = roomID;
+    _currentRoomName = roomName;
     _joined = true;
+    
+    final user = _supabase.auth.currentUser;
+    if (user != null) {
+      final roomData = await _supabase.from('rooms').select().eq('id', roomID).maybeSingle();
+      if (roomData == null) {
+        await _supabase.from('rooms').insert({'id': roomID, 'name': roomName, 'creator_id': user.id});
+      }
+      await _supabase.from('user_rooms').upsert({'user_id': user.id, 'room_id': roomID});
+    }
+
     _send(ChatMessage(type: 'join', user: _username, roomID: _currentRoomID));
     notifyListeners();
+  }
+
+  Future<List<Map<String, dynamic>>> getJoinedRooms() async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return [];
+
+      final data = await _supabase
+          .from('user_rooms')
+          .select('rooms(id, name, creator_id)')
+          .eq('user_id', user.id);
+      
+      return (data as List).map((item) {
+        final room = item['rooms'];
+        if (room == null) return null;
+        return room as Map<String, dynamic>;
+      }).whereType<Map<String, dynamic>>().toList();
+    } catch (e) {
+      debugPrint('Error fetching joined rooms: $e');
+      return [];
+    }
+  }
+
+  Future<void> deleteRoom(String id) async {
+    try {
+      await _supabase.from('rooms').delete().eq('id', id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error deleting room: $e');
+    }
+  }
+
+  Future<void> exitRoom(String id) async {
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+      await _supabase.from('user_rooms').delete().eq('user_id', user.id).eq('room_id', id);
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error exiting room: $e');
+    }
   }
 
   Future<void> sendMessage(String text) async {
@@ -181,7 +237,7 @@ class WebSocketService extends ChangeNotifier {
     
     if (!_joined && _username.isNotEmpty) {
        await connect(_serverUrl, _currentRoomID);
-       if (status == ConnectionStatus.connected) join(_username, _currentRoomID);
+       if (status == ConnectionStatus.connected) join(_username, _currentRoomID, _currentRoomName);
     }
 
     try {
@@ -265,11 +321,7 @@ class WebSocketService extends ChangeNotifier {
   void _send(ChatMessage msg) {
     if (_channel == null) return;
     try {
-      final jsonStr = jsonEncode(msg.toJson());
-      var map = msg.toJson();
-      if (map.containsKey('roomID')) {
-        map['room_id'] = map.remove('roomID');
-      }
+      final map = msg.toJson();
       _channel!.sink.add(jsonEncode(map));
     } catch (e) {
       debugPrint('Failed to send WS message: $e');
@@ -329,12 +381,12 @@ class WebSocketService extends ChangeNotifier {
     status = ConnectionStatus.disconnected;
     _joined = false;
     notifyListeners();
-    debugPrint('WebSocket closed. Assuming dropped connection, retrying in 3 seconds...');
+    debugPrint('WebSocket closed. Retrying in 3 seconds...');
     Future.delayed(const Duration(seconds: 3), () {
       if (_username.isNotEmpty && status == ConnectionStatus.disconnected) {
-        connect(_serverUrl).then((_) {
+        connect(_serverUrl, _currentRoomID).then((_) {
           if (status == ConnectionStatus.connected) {
-            join(_username);
+            join(_username, _currentRoomID, _currentRoomName);
           }
         });
       }

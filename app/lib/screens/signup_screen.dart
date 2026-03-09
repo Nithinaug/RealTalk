@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -16,7 +15,6 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordCtrl = TextEditingController();
   final _confirmPasswordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isPasswordVisible = false;
   bool _isSigningUp = false;
 
   Future<void> _signUp() async {
@@ -113,19 +111,8 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _passwordCtrl,
-                    obscureText: !_isPasswordVisible,
-                    decoration: _inputDecoration('Enter a password').copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: const Color(0xFF94A3B8),
-                        ),
-                        onPressed: () => setState(
-                            () => _isPasswordVisible = !_isPasswordVisible),
-                      ),
-                    ),
+                    obscureText: true,
+                    decoration: _inputDecoration('Enter a password'),
                     validator: (v) {
                       if (v == null || v.isEmpty) return 'Please enter password';
                       if (v.length < 6) return 'Password must be at least 6 characters';
@@ -144,7 +131,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _confirmPasswordCtrl,
-                    obscureText: !_isPasswordVisible,
+                    obscureText: true,
                     decoration: _inputDecoration('Confirm your password'),
                     validator: (v) {
                       if (v != _passwordCtrl.text) return 'Passwords do not match';

@@ -60,7 +60,6 @@ class MessageBubble extends StatelessWidget {
                 ),
               ),
             ),
-
             Row(
               mainAxisAlignment:
                   isMe ? MainAxisAlignment.start : MainAxisAlignment.end,
@@ -80,7 +79,6 @@ class MessageBubble extends StatelessWidget {
                   ),
                   const SizedBox(width: 6),
                 ],
-
                 Flexible(
                   child: Container(
                     padding: const EdgeInsets.symmetric(
@@ -129,7 +127,6 @@ class MessageBubble extends StatelessWidget {
                     ),
                   ),
                 ),
-
                 if (isMe) ...[
                   const SizedBox(width: 6),
                   const CircleAvatar(

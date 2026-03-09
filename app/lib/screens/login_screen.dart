@@ -1,14 +1,9 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'dart:convert';
 import 'signup_screen.dart';
-import 'chat_screen.dart';
 import 'room_selection_screen.dart';
-import 'chat_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,7 +16,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  bool _isPasswordVisible = false;
   bool _isLoggingIn = false;
 
   Future<void> _login() async {
@@ -39,23 +33,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _isLoggingIn = false);
 
     if (success) {
-      final currentUsername = context.read<AuthService>().currentUsername ?? '';
-      String? lastRoom;
-      if (currentUsername.isNotEmpty) {
-        final prefs = await SharedPreferences.getInstance();
-        final roomsStr = prefs.getString('rooms_$currentUsername') ?? '[]';
-        List<String> rooms = List<String>.from(json.decode(roomsStr));
-        if (rooms.isNotEmpty) lastRoom = rooms.first;
-      }
-      
       if (!mounted) return;
-      if (lastRoom != null) {
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => ChatScreen(roomID: lastRoom)));
-      } else {
-        Navigator.pushReplacement(
-            context, MaterialPageRoute(builder: (_) => const RoomSelectionScreen()));
-      }
+      Navigator.pushReplacement(
+          context, MaterialPageRoute(builder: (_) => const RoomSelectionScreen()));
     } else {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -120,21 +100,10 @@ class _LoginScreenState extends State<LoginScreen> {
                   const SizedBox(height: 6),
                   TextFormField(
                     controller: _passwordCtrl,
-                    obscureText: !_isPasswordVisible,
+                    obscureText: true,
                     textInputAction: TextInputAction.done,
                     onFieldSubmitted: (_) => _isLoggingIn ? null : _login(),
-                    decoration: _inputDecoration('Enter your password').copyWith(
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _isPasswordVisible
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                          color: const Color(0xFF94A3B8),
-                        ),
-                        onPressed: () => setState(
-                            () => _isPasswordVisible = !_isPasswordVisible),
-                      ),
-                    ),
+                    decoration: _inputDecoration('Enter your password'),
                     validator: (v) =>
                         v == null || v.isEmpty ? 'Please enter password' : null,
                   ),
