@@ -2,11 +2,9 @@
 -- This script is idempotent (can be run multiple times safely)
 
 -- 1. EXTENSIONS & SCHEMA
--- Ensure we are in the public schema
 SET search_path TO public;
 
 -- 2. TABLES
--- Rooms Table
 CREATE TABLE IF NOT EXISTS rooms (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -14,7 +12,6 @@ CREATE TABLE IF NOT EXISTS rooms (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- User-Room Memberships
 CREATE TABLE IF NOT EXISTS user_rooms (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     room_id TEXT REFERENCES rooms(id) ON DELETE CASCADE,
@@ -22,7 +19,6 @@ CREATE TABLE IF NOT EXISTS user_rooms (
     PRIMARY KEY (user_id, room_id)
 );
 
--- Messages Table (Handled carefully if it pre-exists)
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT NOT NULL,
@@ -31,7 +27,6 @@ CREATE TABLE IF NOT EXISTS messages (
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ensure room_id column exists if messages was created manually before
 DO $$ 
 BEGIN 
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='messages' AND column_name='room_id') THEN
@@ -39,7 +34,6 @@ BEGIN
     END IF;
 END $$;
 
--- Synced Room Clears (User-Specific Chat Clearing)
 CREATE TABLE IF NOT EXISTS user_room_clears (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     room_id TEXT REFERENCES rooms(id) ON DELETE CASCADE,
@@ -47,12 +41,9 @@ CREATE TABLE IF NOT EXISTS user_room_clears (
     PRIMARY KEY (user_id, room_id)
 );
 
--- Deleted Messages Registry (User-Specific Message Deletion)
--- Note: We recreate this to ensure message_id is the correct UUID type
 DO $$ 
 BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'user_deleted_messages') THEN
-        -- Check if column types are correct, if not, recreate
         IF (SELECT data_type FROM information_schema.columns WHERE table_name = 'user_deleted_messages' AND column_name = 'message_id') != 'uuid' THEN
             DROP TABLE user_deleted_messages;
         END IF;
@@ -72,32 +63,34 @@ ALTER TABLE user_rooms ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_room_clears ENABLE ROW LEVEL SECURITY;
 ALTER TABLE user_deleted_messages ENABLE ROW LEVEL SECURITY;
 
--- 4. POLICIES (Drop first to avoid naming conflicts or duplicates)
+-- 4. POLICIES (Drop all possible variations to ensure clean state)
 DO $$ 
 BEGIN
-    -- Rooms
+    -- Drops for "rooms"
     DROP POLICY IF EXISTS "Anyone can see rooms" ON rooms;
     DROP POLICY IF EXISTS "Allow authenticated to select rooms" ON rooms;
     DROP POLICY IF EXISTS "Authenticated users can create rooms" ON rooms;
+    DROP POLICY IF EXISTS "Allow authenticated to insert rooms" ON rooms;
     DROP POLICY IF EXISTS "Creators can delete their rooms" ON rooms;
+    DROP POLICY IF EXISTS "Allow creator to delete rooms" ON rooms;
     
-    -- Messages
+    -- Drops for "messages"
     DROP POLICY IF EXISTS "Anyone can read messages" ON messages;
     DROP POLICY IF EXISTS "Authenticated users can insert messages" ON messages;
     
-    -- Memberships
+    -- Drops for "user_rooms"
     DROP POLICY IF EXISTS "Users can see their own memberships" ON user_rooms;
     DROP POLICY IF EXISTS "Allow users to see their own room memberships" ON user_rooms;
     DROP POLICY IF EXISTS "Users can manage their own memberships" ON user_rooms;
     DROP POLICY IF EXISTS "Allow users to join rooms" ON user_rooms;
     DROP POLICY IF EXISTS "Allow users to leave rooms" ON user_rooms;
     
-    -- Clears & Deletions
+    -- Drops for Clears & Deletions
     DROP POLICY IF EXISTS "Users can manage their own room clears" ON user_room_clears;
     DROP POLICY IF EXISTS "Users can manage their own deleted messages" ON user_deleted_messages;
 END $$;
 
--- CREATE NEW POLICIES
+-- 5. CREATE NEW POLICIES
 -- Rooms
 CREATE POLICY "Allow authenticated to select rooms" ON rooms FOR SELECT USING (auth.role() = 'authenticated');
 CREATE POLICY "Allow authenticated to insert rooms" ON rooms FOR INSERT WITH CHECK (auth.role() = 'authenticated');
@@ -118,9 +111,7 @@ CREATE POLICY "Users can manage their own room clears" ON user_room_clears FOR A
 -- User Deleted Messages
 CREATE POLICY "Users can manage their own deleted messages" ON user_deleted_messages FOR ALL USING (auth.uid() = user_id) WITH CHECK (auth.uid() = user_id);
 
-
--- 5. REALTIME CONFIGURATION
--- Only add tables to publication if they aren't already there
+-- 6. REALTIME CONFIGURATION
 DO $$
 BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'messages') THEN
