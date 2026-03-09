@@ -1,18 +1,11 @@
-let client;
-let configError = null;
-
 try {
   if (typeof CONFIG === 'undefined') {
-    throw new Error("CONFIG is not defined. config.js may have failed to load.");
+    throw new Error("CONFIG is not defined.");
   }
-
-  const SUPABASE_URL = CONFIG.SUPABASE_URL;
-  const SUPABASE_ANON_KEY = CONFIG.SUPABASE_ANON_KEY;
-
+  const { SUPABASE_URL, SUPABASE_ANON_KEY } = CONFIG;
   if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
-    throw new Error("Supabase URL or Anon Key is empty in CONFIG.");
+    throw new Error("Supabase config is missing.");
   }
-
   client = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 } catch (e) {
   console.error("Supabase Init Error:", e);
@@ -56,13 +49,45 @@ document.addEventListener("DOMContentLoaded", () => {
   const joinRoomView = document.getElementById("join-room-view");
   const joinedRoomsList = document.getElementById("joined-rooms-list");
 
-  const createRoomNameInput = document.getElementById("create-room-name");
-  const createRoomIdInput = document.getElementById("create-room-id");
-  const joinRoomNameInput = document.getElementById("join-room-name");
-  const joinRoomIdInput = document.getElementById("join-room-id");
-
   const currentRoomDisplayName = document.getElementById("current-room-name");
   const sidebarAddRoomBtn = document.getElementById("sidebar-add-room-btn");
+  const authBackToLoginBtn = document.getElementById("auth-back-to-login");
+
+  const toggleLoginPass = document.getElementById("toggle-login-password");
+  const loginPassInput = document.getElementById("login-password");
+  const toggleSignupPass = document.getElementById("toggle-signup-password");
+  const signupPassInput = document.getElementById("signup-password");
+  const toggleCreateRoomId = document.getElementById("toggle-create-room-id");
+  const createRoomIdInput = document.getElementById("create-room-id");
+  const toggleJoinRoomId = document.getElementById("toggle-join-room-id");
+  const joinRoomIdInput = document.getElementById("join-room-id");
+
+  function setupPasswordToggle(toggleBtn, inputField) {
+    if (!toggleBtn || !inputField) return;
+    toggleBtn.onclick = (e) => {
+      e.stopPropagation();
+      const isPassword = inputField.type === "password";
+      inputField.type = isPassword ? "text" : "password";
+      
+      const openPath = toggleBtn.querySelector(".eye-open");
+      const closedLine = toggleBtn.querySelector(".eye-closed");
+      if (openPath && closedLine) {
+        openPath.style.display = isPassword ? "none" : "block";
+        closedLine.style.display = isPassword ? "block" : "none";
+      }
+    };
+  }
+
+  setupPasswordToggle(toggleLoginPass, loginPassInput);
+  setupPasswordToggle(toggleSignupPass, signupPassInput);
+  setupPasswordToggle(toggleCreateRoomId, createRoomIdInput);
+  setupPasswordToggle(toggleJoinRoomId, joinRoomIdInput);
+
+  authBackToLoginBtn.onclick = () => {
+    roomSelectionContainer.style.display = "none";
+    authWrapper.style.display = "flex";
+    showLogin.click();
+  };
 
   let currentRoom = null;
   let realtimeChannel = null;
@@ -121,23 +146,40 @@ document.addEventListener("DOMContentLoaded", () => {
     showRoomList();
   };
 
-  function getJoinedRooms() {
-    const saved = localStorage.getItem("realTalk_joinedRooms");
-    const rooms = saved ? JSON.parse(saved) : [];
+  async function getJoinedRooms() {
+    const { data: { user } } = await client.auth.getUser();
+    const { data, error } = await client
+      .from('user_rooms')
+      .select('rooms(id, name, creator_id)')
+      .eq('user_id', user.id);
 
-    return rooms.map(r => typeof r === 'string' ? { id: r, name: r } : r);
-  }
-
-  function saveJoinedRoom(id, name) {
-    let rooms = getJoinedRooms();
-    if (!rooms.find(r => r.id === id)) {
-      rooms.push({ id, name });
-      localStorage.setItem("realTalk_joinedRooms", JSON.stringify(rooms));
+    if (error) {
+      console.error("Error fetching rooms:", error);
+      return [];
     }
+    return data.map(item => item.rooms);
   }
 
-  function renderJoinedRooms() {
-    const rooms = getJoinedRooms();
+  async function saveJoinedRoom(id, name) {
+    const { data: { user } } = await client.auth.getUser();
+    
+    // Check if room exists
+    const { data: roomExists } = await client
+      .from('rooms')
+      .select('id')
+      .eq('id', id)
+      .single();
+
+    if (!roomExists) {
+      await client.from('rooms').insert({ id, name, creator_id: user.id });
+    }
+
+    await client.from('user_rooms').upsert({ user_id: user.id, room_id: id });
+  }
+
+  async function renderJoinedRooms() {
+    const rooms = await getJoinedRooms();
+    const { data: { user } } = await client.auth.getUser();
 
     const activeId = currentRoom ? currentRoom.id : null;
 
@@ -158,8 +200,28 @@ document.addEventListener("DOMContentLoaded", () => {
         const nameSpan = document.createElement("span");
         nameSpan.textContent = room.name;
 
+        const actions = document.createElement("div");
+        actions.className = "card-actions";
+
+        if (room.creator_id === user.id) {
+          const delBtn = document.createElement("button");
+          delBtn.className = "btn-card-action delete";
+          delBtn.title = "Delete Room";
+          delBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 6h18m-2 0v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6m3 0V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2m-6 5v6m4-6v6"/></svg>`;
+          delBtn.onclick = (e) => { e.stopPropagation(); deleteRoom(room.id); };
+          actions.appendChild(delBtn);
+        } else {
+          const exitBtn = document.createElement("button");
+          exitBtn.className = "btn-card-action exit";
+          exitBtn.title = "Exit Room";
+          exitBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4m7 14l5-5-5-5m5 5H9"/></svg>`;
+          exitBtn.onclick = (e) => { e.stopPropagation(); exitRoom(room.id); };
+          actions.appendChild(exitBtn);
+        }
+
         card.appendChild(icon);
         card.appendChild(nameSpan);
+        card.appendChild(actions);
         joinedRoomsList.appendChild(card);
       });
     }
@@ -174,12 +236,26 @@ document.addEventListener("DOMContentLoaded", () => {
         if (activeId !== room.id) joinRoom(room.id, room.name);
       };
 
-      item.innerHTML = `
-        <span class="room-name">${room.name}</span>
-        <span class="room-id">ID: ${room.id}</span>
-      `;
+      item.innerHTML = `<span class="room-name">${room.name}</span>`;
       roomsBox.appendChild(item);
     });
+  }
+
+  async function deleteRoom(id) {
+    if (!confirm("Are you sure you want to delete this room for everyone?")) return;
+    const { error } = await client.from('rooms').delete().eq('id', id);
+    if (error) return alert("Error deleting room: " + error.message);
+    if (currentRoom && currentRoom.id === id) backToRoomsNav.click();
+    renderJoinedRooms();
+  }
+
+  async function exitRoom(id) {
+    if (!confirm("Remove this room from your list?")) return;
+    const { data: { user } } = await client.auth.getUser();
+    const { error } = await client.from('user_rooms').delete().eq('user_id', user.id).eq('room_id', id);
+    if (error) return alert("Error exiting room: " + error.message);
+    if (currentRoom && currentRoom.id === id) backToRoomsNav.click();
+    renderJoinedRooms();
   }
 
   async function joinRoom(id, name) {
@@ -190,23 +266,22 @@ document.addEventListener("DOMContentLoaded", () => {
       return alert("Room ID (Password) can only contain letters and numbers.");
     }
 
-    currentRoom = { id, name };
-    saveJoinedRoom(id, name);
-
-    currentRoomDisplayName.textContent = `Room: ${name}`;
-    roomSelectionContainer.style.display = "none";
-    mainChat.style.display = "flex";
-    joined = true;
-
-    renderJoinedRooms(); // Refresh sidebar highlight
-
     try {
+      currentRoom = { id, name };
+      await saveJoinedRoom(id, name);
+
+      currentRoomDisplayName.textContent = `Room: ${name}`;
+      roomSelectionContainer.style.display = "none";
+      mainChat.style.display = "flex";
+      joined = true;
+
+      await renderJoinedRooms();
       await fetchHistory();
       connectWebSocket();
       setupRealtime();
     } catch (err) {
       console.error(err);
-      alert("Error loading chat data.");
+      alert("Error joining room.");
     }
   }
 
@@ -332,10 +407,9 @@ document.addEventListener("DOMContentLoaded", () => {
     myName = user.user_metadata.username || user.email.split('@')[0];
     displayName.textContent = myName;
     authWrapper.style.display = "none";
-
-
     roomSelectionContainer.style.display = "flex";
     showRoomList();
+    renderJoinedRooms();
   }
 
   async function fetchHistory() {

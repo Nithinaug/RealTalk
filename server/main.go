@@ -34,7 +34,6 @@ type Client struct {
 }
 
 var (
-	// Map of roomID -> map of clients
 	rooms   = make(map[string]map[*Client]bool)
 	roomsMu sync.Mutex
 )
@@ -61,7 +60,7 @@ func handleConnections(c *gin.Context) {
 		}
 		roomsMu.Unlock()
 		ws.Close()
-		
+
 		if client.Room != "" {
 			broadcastUserList(client.Room)
 		}
@@ -78,16 +77,16 @@ func handleConnections(c *gin.Context) {
 		case "join":
 			client.User = msg.User
 			client.Room = msg.Room
-			
+
 			roomsMu.Lock()
 			if rooms[client.Room] == nil {
 				rooms[client.Room] = make(map[*Client]bool)
 			}
 			rooms[client.Room][client] = true
 			roomsMu.Unlock()
-			
+
 			broadcastUserList(client.Room)
-			
+
 		case "leave":
 			roomsMu.Lock()
 			if roomClients, ok := rooms[msg.Room]; ok {
@@ -97,12 +96,11 @@ func handleConnections(c *gin.Context) {
 				}
 			}
 			roomsMu.Unlock()
-			
+
 			client.Room = ""
 			broadcastUserList(msg.Room)
-			
+
 		case "message":
-			// Ensure message has room context
 			if msg.Room == "" {
 				msg.Room = client.Room
 			}
@@ -115,10 +113,10 @@ func broadcastUserList(roomID string) {
 	if roomID == "" {
 		return
 	}
-	
+
 	roomsMu.Lock()
 	roomClients := rooms[roomID]
-	
+
 	uniqueUsers := make(map[string]bool)
 	for client := range roomClients {
 		if client.User != "" {
@@ -153,7 +151,7 @@ func broadcastMessage(msg Message) {
 	if msg.Room == "" {
 		return
 	}
-	
+
 	roomsMu.Lock()
 	defer roomsMu.Unlock()
 
