@@ -272,12 +272,12 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function handleClearChat() {
-    if (!currentRoomID) return;
+    if (!currentRoom) return;
     if (confirm("Clear room history for you? This will sync across your devices.")) {
       const { data: { user } } = await client.auth.getUser();
       const { error } = await client
         .from('user_room_clears')
-        .upsert({ user_id: user.id, room_id: currentRoomID, cleared_at: new Date().toISOString() });
+        .upsert({ user_id: user.id, room_id: currentRoom, cleared_at: new Date().toISOString() });
 
       if (error) return alert("Error: " + error.message);
       msgArea.innerHTML = "";
@@ -341,11 +341,30 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function fetchHistory() {
     if (!currentRoom) return;
-    
+
+    const { data: { user } } = await client.auth.getUser();
+
+    const { data: clearData } = await client
+      .from('user_room_clears')
+      .select('cleared_at')
+      .eq('user_id', user.id)
+      .eq('room_id', currentRoom)
+      .single();
+
+    const clearedAt = clearData ? clearData.cleared_at : '1970-01-01T00:00:00Z';
+
+    const { data: deletedData } = await client
+      .from('user_deleted_messages')
+      .select('message_id')
+      .eq('user_id', user.id);
+
+    const deletedIDs = deletedData ? deletedData.map(d => d.message_id) : [];
+
     const { data, error } = await client
       .from('messages')
       .select('*')
       .eq('room_id', currentRoom)
+      .gt('created_at', clearedAt)
       .order('created_at', { ascending: true })
       .limit(100);
 
@@ -394,7 +413,7 @@ document.addEventListener("DOMContentLoaded", () => {
         schema: 'public',
         table: 'user_room_clears'
       }, payload => {
-        if (payload.new.room_id === currentRoomID) {
+        if (payload.new.room_id === currentRoom) {
           msgArea.innerHTML = "";
         }
       })
@@ -426,7 +445,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showUsers(data.users);
         onlineCount.textContent = `${data.users.length} online`;
       } else if (data.type === "message") {
-        if (data.user !== myName && data.room_id === currentRoomID) {
+        if (data.user !== myName && data.room === currentRoom) {
           addMsg(data.user, data.text, new Date().toISOString());
         }
       }
