@@ -37,11 +37,14 @@
           <div class="password-field">
             <input type="password" id="login-password" name="password" autocomplete="current-password"
               placeholder="Enter your password">
-            <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
-              stroke-width="2">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-              <circle cx="12" cy="12" r="3" />
-            </svg>
+            <button type="button" class="eye-toggle" id="toggle-login-password">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
+                stroke-width="2">
+                <path class="eye-open" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle class="eye-open" cx="12" cy="12" r="3" />
+                <line class="eye-closed" x1="1" y1="1" x2="23" y2="23" style="display:none;" />
+              </svg>
+            </button>
           </div>
         </div>
         <button id="login-button" class="btn-primary">
@@ -59,8 +62,18 @@
         </div>
         <div class="input-group">
           <label for="signup-password">Password</label>
-          <input type="password" id="signup-password" name="password" autocomplete="new-password"
-            placeholder="Create a password">
+          <div class="password-field">
+            <input type="password" id="signup-password" name="password" autocomplete="new-password"
+              placeholder="Create a password">
+            <button type="button" class="eye-toggle" id="toggle-signup-password">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
+                stroke-width="2">
+                <path class="eye-open" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle class="eye-open" cx="12" cy="12" r="3" />
+                <line class="eye-closed" x1="1" y1="1" x2="23" y2="23" style="display:none;" />
+              </svg>
+            </button>
+          </div>
         </div>
         <button id="signup-button" class="btn-primary">
           <span class="btn-text">Sign Up</span>
@@ -85,6 +98,7 @@
           </svg>
         </div>
         <h1>Rooms</h1>
+        <button id="auth-back-to-login" class="btn-text-only" style="margin-top: 8px;">Back to Login</button>
       </div>
 
       <div id="rooms-list-view">
@@ -101,11 +115,21 @@
       <div id="create-room-view" style="display: none;">
         <div class="input-group">
           <label for="create-room-name">Room Name</label>
-          <input type="text" id="create-room-name" placeholder="e.g. My Secret Base">
+          <input type="text" id="create-room-name" placeholder="Room Name">
         </div>
         <div class="input-group">
           <label for="create-room-id">Room ID (Password)</label>
-          <input type="text" id="create-room-id" placeholder="e.g. secret123">
+          <div class="password-field">
+            <input type="password" id="create-room-id" placeholder="Room ID">
+            <button type="button" class="eye-toggle" id="toggle-create-room-id">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
+                stroke-width="2">
+                <path class="eye-open" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle class="eye-open" cx="12" cy="12" r="3" />
+                <line class="eye-closed" x1="1" y1="1" x2="23" y2="23" style="display:none;" />
+              </svg>
+            </button>
+          </div>
         </div>
         <button id="create-room-submit" class="btn-primary">Create</button>
         <button class="btn-text-only back-to-rooms">Cancel</button>
@@ -114,11 +138,21 @@
       <div id="join-room-view" style="display: none;">
         <div class="input-group">
           <label for="join-room-name">Room Name (Label)</label>
-          <input type="text" id="join-room-name" placeholder="e.g. My Secret Base">
+          <input type="text" id="join-room-name" placeholder="Room Name">
         </div>
         <div class="input-group">
           <label for="join-room-id">Room ID (Password)</label>
-          <input type="text" id="join-room-id" placeholder="Room ID">
+          <div class="password-field">
+            <input type="password" id="join-room-id" placeholder="Room ID">
+            <button type="button" class="eye-toggle" id="toggle-join-room-id">
+              <svg class="eye-icon" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#94a3b8"
+                stroke-width="2">
+                <path class="eye-open" d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                <circle class="eye-open" cx="12" cy="12" r="3" />
+                <line class="eye-closed" x1="1" y1="1" x2="23" y2="23" style="display:none;" />
+              </svg>
+            </button>
+          </div>
         </div>
         <button id="join-room-submit" class="btn-primary">Join</button>
         <button class="btn-text-only back-to-rooms">Cancel</button>
