@@ -157,7 +157,11 @@ class WebSocketService extends ChangeNotifier {
     try {
       _channel?.sink.close();
       _channel = WebSocketChannel.connect(Uri.parse(_serverUrl));
-      await _channel!.ready;
+
+      await _channel!.ready.timeout(
+        const Duration(seconds: 8),
+        onTimeout: () => throw Exception('Connection timed out'),
+      );
 
       status = ConnectionStatus.connected;
       notifyListeners();
@@ -184,14 +188,16 @@ class WebSocketService extends ChangeNotifier {
     _currentRoomName = roomName;
     _joined = true;
 
-    final user = _supabase.auth.currentUser;
-    if (user != null) {
-      final existing = await _supabase.from('rooms').select().eq('id', roomID).maybeSingle();
-      if (existing == null) {
-        await _supabase.from('rooms').insert({'id': roomID, 'name': roomName, 'creator_id': user.id});
+    try {
+      final user = _supabase.auth.currentUser;
+      if (user != null) {
+        final existing = await _supabase.from('rooms').select().eq('id', roomID).maybeSingle();
+        if (existing == null) {
+          await _supabase.from('rooms').insert({'id': roomID, 'name': roomName, 'creator_id': user.id});
+        }
+        await _supabase.from('user_rooms').upsert({'user_id': user.id, 'room_id': roomID});
       }
-      await _supabase.from('user_rooms').upsert({'user_id': user.id, 'room_id': roomID});
-    }
+    } catch (_) {}
 
     _send(ChatMessage(type: 'join', user: _username, roomID: _currentRoomID));
     notifyListeners();
