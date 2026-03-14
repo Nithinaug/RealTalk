@@ -415,8 +415,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   async function onAuthenticated(user) {
-    myName = (user.user_metadata?.username || user.email.split('@')[0] || "Unknown").trim();
-    console.log("Authenticated as:", myName, "Full Metadata:", user.user_metadata);
+    const rawName = user.user_metadata?.username || user.email.split('@')[0] || "Unknown";
+    myName = rawName.trim();
+    console.log("Authenticated INFO:", {
+        myName: myName,
+        email: user.email,
+        metadata: user.user_metadata
+    });
     displayName.textContent = myName;
     authWrapper.style.display = "none";
     roomSelectionContainer.style.display = "flex";
@@ -590,13 +595,15 @@ document.addEventListener("DOMContentLoaded", () => {
   function createMsgElement(user, text, timestamp, id) {
     const d = document.createElement("div");
     const sameUser = isMe(user);
-    console.log(`createMsgElement: user="${user}", myName="${myName}", sameUser=${sameUser}`);
+    if (sameUser) {
+        console.log(`Matching message as ME: "${user}" matches "${myName}"`);
+    }
     d.className = sameUser ? "msg me" : "msg other";
     if (id) d.setAttribute("data-id", id);
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "name";
-    nameSpan.textContent = sameUser ? "You" : (user || "Anonymous User");
+    nameSpan.textContent = sameUser ? "You" : (user || "Anonymous");
     if (!user && !sameUser) {
         console.warn("Message has no username attached!");
     }
