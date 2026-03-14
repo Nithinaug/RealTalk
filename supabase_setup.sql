@@ -22,13 +22,18 @@ CREATE TABLE IF NOT EXISTS user_rooms (
 CREATE TABLE IF NOT EXISTS messages (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     username TEXT NOT NULL,
+    user_id UUID REFERENCES auth.users(id),
     text TEXT NOT NULL,
     room_id TEXT DEFAULT 'public',
     created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- Add user_id column if it doesn't exist yet (for existing tables)
 DO $$ 
 BEGIN 
+    IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='messages' AND column_name='user_id') THEN
+        ALTER TABLE messages ADD COLUMN user_id UUID REFERENCES auth.users(id);
+    END IF;
     IF NOT EXISTS (SELECT 1 FROM information_schema.columns WHERE table_name='messages' AND column_name='room_id') THEN
         ALTER TABLE messages ADD COLUMN room_id TEXT DEFAULT 'public';
     END IF;
@@ -101,10 +106,7 @@ CREATE POLICY "Allow creator to delete rooms" ON rooms FOR DELETE USING (auth.ui
 CREATE POLICY "Anyone can read messages" ON messages FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert messages" ON messages FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
 CREATE POLICY "Allow sender to delete for everyone" ON messages FOR DELETE USING (
-    (auth.uid() IS NOT NULL) AND (
-        username = (auth.jwt() -> 'user_metadata' ->> 'username') OR 
-        username = split_part(auth.jwt() ->> 'email', '@', 1)
-    )
+    auth.uid() = user_id
 );
 
 -- User Room Memberships
