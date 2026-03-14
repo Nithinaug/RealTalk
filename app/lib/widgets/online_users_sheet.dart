@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class OnlineUsersSheet extends StatelessWidget {
   final List<String> users;
@@ -26,26 +27,47 @@ class OnlineUsersSheet extends StatelessWidget {
       child: Column(
         children: [
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(
-                horizontal: 16, vertical: 10),
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.only(
+                topLeft: Radius.circular(20),
+                topRight: Radius.circular(20),
+              ),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
             child: Row(
               children: [
-                const Text(
+                Text(
                   'Online Users',
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A),
+                  style: GoogleFonts.outfit(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: const Color(0xFF0F172A),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF22C55E).withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    '${users.length}',
+                    style: GoogleFonts.inter(
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      color: const Color(0xFF16A34A),
+                    ),
                   ),
                 ),
                 const Spacer(),
                 IconButton(
                   onPressed: onClose,
-                  icon: const Icon(Icons.keyboard_arrow_up_rounded),
+                  icon: const Icon(Icons.close_rounded, size: 20),
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(),
-                  color: const Color(0xFF475569),
+                  color: const Color(0xFF94A3B8),
                 ),
               ],
             ),
@@ -88,29 +110,28 @@ class OnlineUsersSheet extends StatelessWidget {
                             const SizedBox(width: 10),
                             Text(
                               user,
-                              style: const TextStyle(
+                              style: GoogleFonts.inter(
                                 fontSize: 14,
                                 fontWeight: FontWeight.w600,
-                                color: Color(0xFF0F172A),
+                                color: const Color(0xFF0F172A),
                               ),
                             ),
                             if (isMe) ...[
-                              const SizedBox(width: 6),
+                              const SizedBox(width: 8),
                               Container(
                                 padding: const EdgeInsets.symmetric(
-                                    horizontal: 6, vertical: 2),
+                                    horizontal: 8, vertical: 2),
                                 decoration: BoxDecoration(
-                                  color: const Color(0xFF22C55E)
-                                      .withOpacity(0.15),
-                                  borderRadius:
-                                      BorderRadius.circular(4),
+                                  color: const Color(0xFF22C55E),
+                                  borderRadius: BorderRadius.circular(6),
                                 ),
-                                child: const Text(
-                                  'You',
-                                  style: TextStyle(
-                                    fontSize: 11,
-                                    color: Color(0xFF16A34A),
-                                    fontWeight: FontWeight.w600,
+                                child: Text(
+                                  'YOU',
+                                  style: GoogleFonts.inter(
+                                    fontSize: 10,
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w900,
+                                    letterSpacing: 0.5,
                                   ),
                                 ),
                               ),

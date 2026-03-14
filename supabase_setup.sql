@@ -77,6 +77,7 @@ BEGIN
     -- Drops for "messages"
     DROP POLICY IF EXISTS "Anyone can read messages" ON messages;
     DROP POLICY IF EXISTS "Authenticated users can insert messages" ON messages;
+    DROP POLICY IF EXISTS "Allow sender to delete for everyone" ON messages;
     
     -- Drops for "user_rooms"
     DROP POLICY IF EXISTS "Users can see their own memberships" ON user_rooms;
@@ -99,6 +100,7 @@ CREATE POLICY "Allow creator to delete rooms" ON rooms FOR DELETE USING (auth.ui
 -- Messages
 CREATE POLICY "Anyone can read messages" ON messages FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert messages" ON messages FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
+CREATE POLICY "Allow sender to delete for everyone" ON messages FOR DELETE USING (auth.uid()::text IN (SELECT auth.uid()::text FROM auth.users WHERE email = username || '@example.com'));
 
 -- User Room Memberships
 CREATE POLICY "Allow users to see their own room memberships" ON user_rooms FOR SELECT USING (auth.uid() = user_id);
@@ -117,6 +119,8 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'messages') THEN
         ALTER PUBLICATION supabase_realtime ADD TABLE messages;
     END IF;
+    -- Ensure REPLICA IDENTITY is FULL for DELETE events to work reliably
+    ALTER TABLE messages REPLICA IDENTITY FULL;
     
     IF NOT EXISTS (SELECT 1 FROM pg_publication_tables WHERE pubname = 'supabase_realtime' AND tablename = 'user_room_clears') THEN
         ALTER PUBLICATION supabase_realtime ADD TABLE user_room_clears;

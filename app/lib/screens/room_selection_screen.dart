@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
+import '../services/websocket_service.dart';
 import 'chat_screen.dart';
 
 class RoomSelectionScreen extends StatefulWidget {
@@ -17,6 +19,23 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
   bool _showInput = false;
   String _actionType = ''; 
   bool _isLoading = false;
+  List<Map<String, dynamic>> _joinedRooms = [];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadJoinedRooms();
+  }
+
+  Future<void> _loadJoinedRooms() async {
+    final wsSvc = context.read<WebSocketService>();
+    final rooms = await wsSvc.getJoinedRooms();
+    if (mounted) {
+      setState(() {
+        _joinedRooms = rooms;
+      });
+    }
+  }
 
   void _showRoomInput(String type) {
     setState(() {
@@ -84,7 +103,7 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => ChatScreen(roomID: id, roomName: name)),
-    );
+    ).then((_) => _loadJoinedRooms());
   }
 
   @override
@@ -92,141 +111,206 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
     final auth = context.read<AuthService>();
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('RealTalk', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: const Color(0xFFA6D6B8),
+        title: Text('RealTalk', style: GoogleFonts.outfit(fontWeight: FontWeight.w800, color: const Color(0xFF0F172A))),
+        backgroundColor: Colors.white,
+        elevation: 0,
+        centerTitle: true,
         actions: [
           IconButton(
             onPressed: () => auth.logout(),
-            icon: const Icon(Icons.logout),
+            icon: const Icon(Icons.logout, color: Color(0xFF64748B)),
           ),
         ],
       ),
-      body: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(Icons.forum_rounded, size: 80, color: Color(0xFF22C55E)),
-              const SizedBox(height: 32),
-              Text(
-                'Welcome, ${auth.currentUsername}!',
-                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: const Color(0xFF22C55E).withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.forum_rounded, size: 48, color: Color(0xFF22C55E)),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              'RealTalk',
+              style: GoogleFonts.outfit(fontSize: 32, fontWeight: FontWeight.w900, color: const Color(0xFF0F172A)),
+            ),
+            const SizedBox(height: 4),
+            TextButton(
+              onPressed: () => auth.logout(),
+              child: const Text(
+                'Back to Login',
+                style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.w600, fontSize: 14),
+              ),
+            ),
+            const SizedBox(height: 40),
+            if (!_showInput) ...[
+              if (_joinedRooms.isNotEmpty) ...[
+                GridView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                    crossAxisCount: 2,
+                    crossAxisSpacing: 16,
+                    mainAxisSpacing: 16,
+                    childAspectRatio: 1.2,
+                  ),
+                  itemCount: _joinedRooms.length,
+                  itemBuilder: (context, index) {
+                    final room = _joinedRooms[index];
+                    return GestureDetector(
+                      onTap: () => _enterRoom(room['id'], room['name']),
+                      child: Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: const Color(0xFFE2E8F0)),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.02),
+                              blurRadius: 10,
+                              offset: const Offset(0, 4),
+                            ),
+                          ],
+                        ),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF22C55E).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: const Icon(Icons.group_rounded, color: Color(0xFF22C55E), size: 28),
+                            ),
+                            const SizedBox(height: 10),
+                            Text(
+                              room['name'],
+                              style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A), fontSize: 14),
+                              textAlign: TextAlign.center,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+                const SizedBox(height: 40),
+              ],
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: () => _showRoomInput('create'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF22C55E),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: const Text('Create New Room', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
               ),
               const SizedBox(height: 16),
-              const Text(
-                'Create a new room or join an existing one to start chatting.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF64748B), fontSize: 16),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: OutlinedButton(
+                  onPressed: () => _showRoomInput('join'),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: const Color(0xFF22C55E),
+                    side: const BorderSide(color: Color(0xFF22C55E), width: 2),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                  ),
+                  child: const Text('Join Room', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
               ),
-              const SizedBox(height: 48),
-              if (!_showInput) ...[
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => _showRoomInput('create'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text('Create New Room', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            ] else ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.start,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.arrow_back, color: Color(0xFF475569)),
+                    onPressed: () => setState(() => _showInput = false),
                   ),
-                ),
-                const SizedBox(height: 24),
-                const Row(
-                  children: [
-                    Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                    Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 16),
-                      child: Text('OR', style: TextStyle(color: Color(0xFF94A3B8), fontWeight: FontWeight.bold)),
-                    ),
-                    Expanded(child: Divider(color: Color(0xFFE2E8F0))),
-                  ],
-                ),
-                const SizedBox(height: 24),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: () => _showRoomInput('join'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: const Text('Join Room', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  Text(
+                    _actionType == 'create' ? 'Create New Room' : 'Join Room',
+                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
                   ),
-                ),
-              ] else ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.start,
-                  children: [
-                    IconButton(
-                      icon: const Icon(Icons.arrow_back, color: Color(0xFF475569)),
-                      onPressed: () => setState(() => _showInput = false),
-                    ),
-                    Text(
-                      _actionType == 'create' ? 'Create New Room' : 'Join Room',
-                      style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF3E4D61)),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-                if (_actionType == 'create') ...[
-                  TextField(
-                    controller: _roomNameCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Room Name',
-                      filled: true,
-                      fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                 ],
+              ),
+              const SizedBox(height: 24),
+              if (_actionType == 'create') ...[
                 TextField(
-                  controller: _roomIDCtrl,
-                  obscureText: true,
-                  textInputAction: TextInputAction.done,
-                  onSubmitted: (_) => _handleAction(),
+                  controller: _roomNameCtrl,
                   decoration: InputDecoration(
-                    hintText: 'Room ID',
+                    hintText: 'Room Name',
                     filled: true,
-                    fillColor: Colors.white,
+                    fillColor: const Color(0xFFF8FAFC),
                     contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                     border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(12),
                       borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                     ),
                   ),
                 ),
                 const SizedBox(height: 16),
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _handleAction,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF22C55E),
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    ),
-                    child: _isLoading 
-                      ? const CircularProgressIndicator(color: Colors.white)
-                      : Text(_actionType == 'create' ? 'Create' : 'Join', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              ],
+              TextField(
+                controller: _roomIDCtrl,
+                obscureText: true,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _handleAction(),
+                decoration: InputDecoration(
+                  hintText: 'Room ID',
+                  filled: true,
+                  fillColor: const Color(0xFFF8FAFC),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFFE2E8F0)),
                   ),
                 ),
-              ],
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _handleAction,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF22C55E),
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    elevation: 0,
+                  ),
+                  child: _isLoading 
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Text(_actionType == 'create' ? 'Create' : 'Join', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                ),
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );

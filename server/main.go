@@ -92,6 +92,7 @@ func handleConnections(c *gin.Context) {
 
 			client.User = msg.User
 			client.Room = msg.Room
+			log.Printf("User %s joined room %s", client.User, client.Room)
 
 			if rooms[client.Room] == nil {
 				rooms[client.Room] = make(map[*Client]bool)
@@ -143,6 +144,7 @@ func broadcastUserList(roomID string) {
 	for user := range uniqueUsers {
 		userList = append(userList, user)
 	}
+	log.Printf("Broadcasting users for room %s: %v", roomID, userList)
 
 	msg := Message{
 		Type:  "users",

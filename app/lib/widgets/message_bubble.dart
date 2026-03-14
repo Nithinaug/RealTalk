@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../models/chat_message.dart';
 import '../services/websocket_service.dart';
 
@@ -44,25 +45,25 @@ class MessageBubble extends StatelessWidget {
     return GestureDetector(
       onLongPress: () => _showOptions(context),
       child: Padding(
-        padding: const EdgeInsets.only(bottom: 6),
+        padding: const EdgeInsets.only(bottom: 12),
         child: Column(
           crossAxisAlignment:
-              isMe ? CrossAxisAlignment.start : CrossAxisAlignment.end,
+              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Padding(
-              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 3),
+              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4),
               child: Text(
                 isMe ? 'You' : (message.user ?? 'Unknown'),
-                style: const TextStyle(
+                style: GoogleFonts.inter(
                   fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF475569),
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFF64748B),
                 ),
               ),
             ),
             Row(
               mainAxisAlignment:
-                  isMe ? MainAxisAlignment.start : MainAxisAlignment.end,
+                  isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (!isMe) ...[
@@ -91,11 +92,11 @@ class MessageBubble extends StatelessWidget {
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
                         bottomLeft: isMe
-                            ? const Radius.circular(4)
-                            : const Radius.circular(16),
-                        bottomRight: isMe
                             ? const Radius.circular(16)
                             : const Radius.circular(4),
+                        bottomRight: isMe
+                            ? const Radius.circular(4)
+                            : const Radius.circular(16),
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -110,17 +111,18 @@ class MessageBubble extends StatelessWidget {
                       children: [
                         Text(
                           message.text ?? '',
-                          style: const TextStyle(
+                          style: GoogleFonts.inter(
                             fontSize: 15,
-                            color: Color(0xFF0F172A),
+                            color: const Color(0xFF0F172A),
+                            height: 1.4,
                           ),
                         ),
                         const SizedBox(height: 4),
                         Text(
                           timeStr,
-                          style: const TextStyle(
-                            fontSize: 11,
-                            color: Color(0xFF94A3B8),
+                          style: GoogleFonts.inter(
+                            fontSize: 10,
+                            color: isMe ? const Color(0xFF16A34A).withOpacity(0.7) : const Color(0xFF94A3B8),
                           ),
                         ),
                       ],

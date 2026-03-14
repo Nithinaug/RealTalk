@@ -98,7 +98,6 @@ document.addEventListener("DOMContentLoaded", () => {
     mainChat.style.display = "none";
     roomSelectionContainer.style.display = "flex";
 
-    // Cleanup chat state
     if (socket && socket.readyState === 1) {
       socket.send(JSON.stringify({ type: "leave", user: myName, room: currentRoom ? currentRoom.id : "" }));
     }
@@ -138,7 +137,6 @@ document.addEventListener("DOMContentLoaded", () => {
   async function saveJoinedRoom(id, name) {
     const { data: { user } } = await client.auth.getUser();
 
-    // Check if room exists
     const { data: roomExists } = await client
       .from('rooms')
       .select('id')
@@ -430,8 +428,8 @@ document.addEventListener("DOMContentLoaded", () => {
       .eq('room_id', currentRoom.id)
       .maybeSingle();
 
-    if (clearError) console.warn("Notice: No clear-at record found, starting from beginning.");
-    const clearedAt = clearData ? clearData.cleared_at : '1970-01-01T00:00:00Z';
+    if (clearError && clearError.code !== 'PGRST116') console.warn("Notice: Error fetching clear-at record:", clearError);
+    const clearedAt = (clearData && clearData.cleared_at) ? clearData.cleared_at : '1970-01-01T00:00:00Z';
 
     const { data: deletedData } = await client
       .from('user_deleted_messages')
@@ -481,12 +479,24 @@ document.addEventListener("DOMContentLoaded", () => {
         }
       })
       .on('postgres_changes', {
+        event: 'DELETE',
+        schema: 'public',
+        table: 'messages'
+      }, payload => {
+        const el = document.querySelector(`[data-id="${payload.old.id}"]`);
+        if (el) el.remove();
+      })
+      .on('postgres_changes', {
         event: 'INSERT',
         schema: 'public',
         table: 'user_deleted_messages'
       }, payload => {
-        const el = document.querySelector(`[data-id="${payload.new.message_id}"]`);
-        if (el) el.remove();
+        client.auth.getUser().then(({ data }) => {
+          if (data && data.user && payload.new.user_id === data.user.id) {
+            const el = document.querySelector(`[data-id="${payload.new.message_id}"]`);
+            if (el) el.remove();
+          }
+        });
       })
       .on('postgres_changes', {
         event: 'UPSERT',
@@ -557,7 +567,7 @@ document.addEventListener("DOMContentLoaded", () => {
       msgBox.value = "";
 
       if (socket && socket.readyState === 1) {
-        // Server expects 'room' for broadcasting
+
         socket.send(JSON.stringify({ type: "message", user: myName, text: text, room: currentRoom.id }));
       }
     } catch (e) {
@@ -575,7 +585,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "name";
-    nameSpan.textContent = user;
+    if (user === myName) {
+      nameSpan.style.display = "none";
+    }
+    nameSpan.textContent = user || "Anonymous";
 
     const timeSpan = document.createElement("span");
     timeSpan.className = "time";
@@ -592,14 +605,40 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const actions = document.createElement("div");
     actions.className = "msg-actions";
-    const delBtn = document.createElement("button");
-    delBtn.className = "btn-delete";
-    delBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;
-    delBtn.onclick = () => deleteMessageForMe(id, d);
-    actions.appendChild(delBtn);
+    
+    // Delete for Me (Always available)
+    const delMeBtn = document.createElement("button");
+    delMeBtn.className = "btn-delete me-only";
+    delMeBtn.title = "Delete for Me";
+    delMeBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg><span class="label">For Me</span>`;
+    delMeBtn.onclick = () => deleteMessageForMe(id, d);
+    actions.appendChild(delMeBtn);
+
+    // Delete for Everyone (Only for sender)
+    if (user === myName) {
+      const delAllBtn = document.createElement("button");
+      delAllBtn.className = "btn-delete all";
+      delAllBtn.title = "Delete for Everyone";
+      delAllBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg><span class="label">For All</span>`;
+      delAllBtn.onclick = () => deleteMessageForEveryone(id);
+      actions.appendChild(delAllBtn);
+    }
+
     d.appendChild(actions);
 
     return d;
+  }
+
+  async function deleteMessageForEveryone(msgId) {
+    if (!msgId) return;
+    if (!confirm("Delete this message for everyone?")) return;
+    const { error } = await client
+      .from('messages')
+      .delete()
+      .eq('id', msgId);
+
+    if (error) return alert("Error deleting message for everyone: " + error.message);
+    // Realtime will handle removal
   }
 
   async function deleteMessageForMe(msgId, element) {
