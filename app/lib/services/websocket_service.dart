@@ -302,18 +302,24 @@ class WebSocketService extends ChangeNotifier {
   void _onData(dynamic data) {
     try {
       final json = jsonDecode(data as String) as Map<String, dynamic>;
+      final type = json['type'] as String? ?? '';
+      final room = (json['room'] ?? json['room_id']) as String? ?? '';
+
+      if (type == 'users') {
+        if (room == _currentRoomID || room.isEmpty) {
+          onlineUsers = List<String>.from(json['users'] as List? ?? []);
+          notifyListeners();
+        }
+        return;
+      }
+
       if (json.containsKey('room') && !json.containsKey('room_id')) {
         json['room_id'] = json['room'];
       }
 
       final msg = ChatMessage.fromJson(json);
 
-      if (msg.type == 'users') {
-        if (msg.roomID == _currentRoomID || msg.roomID == null || msg.roomID == '') {
-          onlineUsers = List<String>.from(msg.users ?? []);
-          notifyListeners();
-        }
-      } else if (msg.type == 'message') {
+      if (type == 'message') {
         if ((msg.roomID == _currentRoomID || msg.roomID == null) &&
             !messages.any((m) => m.id == msg.id)) {
           messages.add(msg);
