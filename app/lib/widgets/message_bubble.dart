@@ -44,8 +44,14 @@ class MessageBubble extends StatelessWidget {
                       title: const Text('Delete for Everyone?'),
                       content: const Text('This will remove the message for all participants.'),
                       actions: [
-                        TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
-                        TextButton(onPressed: () => Navigator.pop(dialogCtx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogCtx, false),
+                          child: const Text('Cancel'),
+                        ),
+                        TextButton(
+                          onPressed: () => Navigator.pop(dialogCtx, true),
+                          child: const Text('Delete', style: TextStyle(color: Colors.red)),
+                        ),
                       ],
                     ),
                   );
@@ -69,8 +75,7 @@ class MessageBubble extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: 12),
         child: Column(
-          crossAxisAlignment:
-              isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
           children: [
             Padding(
               padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4),
@@ -84,8 +89,7 @@ class MessageBubble extends StatelessWidget {
               ),
             ),
             Row(
-              mainAxisAlignment:
-                  isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+              mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 if (!isMe) ...[
@@ -95,30 +99,24 @@ class MessageBubble extends StatelessWidget {
                     child: Text(
                       (message.user ?? '?')[0].toUpperCase(),
                       style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold),
+                        color: Colors.white,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                      ),
                     ),
                   ),
                   const SizedBox(width: 6),
                 ],
                 Flexible(
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 14, vertical: 10),
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                     decoration: BoxDecoration(
-                      color: isMe
-                          ? const Color(0xFFDCF8C6)
-                          : Colors.white,
+                      color: isMe ? const Color(0xFFDCF8C6) : Colors.white,
                       borderRadius: BorderRadius.only(
                         topLeft: const Radius.circular(16),
                         topRight: const Radius.circular(16),
-                        bottomLeft: isMe
-                            ? const Radius.circular(16)
-                            : const Radius.circular(4),
-                        bottomRight: isMe
-                            ? const Radius.circular(4)
-                            : const Radius.circular(16),
+                        bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
+                        bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
                       ),
                       boxShadow: [
                         BoxShadow(
@@ -144,7 +142,9 @@ class MessageBubble extends StatelessWidget {
                           timeStr,
                           style: GoogleFonts.inter(
                             fontSize: 10,
-                            color: isMe ? const Color(0xFF16A34A).withOpacity(0.7) : const Color(0xFF94A3B8),
+                            color: isMe
+                                ? const Color(0xFF16A34A).withOpacity(0.7)
+                                : const Color(0xFF94A3B8),
                           ),
                         ),
                       ],
@@ -156,8 +156,7 @@ class MessageBubble extends StatelessWidget {
                   const CircleAvatar(
                     radius: 14,
                     backgroundColor: Color(0xFF22C55E),
-                    child: Icon(Icons.person,
-                        color: Colors.white, size: 16),
+                    child: Icon(Icons.person, color: Colors.white, size: 16),
                   ),
                 ],
               ],

@@ -76,14 +76,12 @@ func handleConnections(c *gin.Context) {
 		switch msg.Type {
 		case "join":
 			roomsMu.Lock()
-			// If client was in another room, remove them first
 			if client.Room != "" && client.Room != msg.Room {
 				if oldRoomClients, ok := rooms[client.Room]; ok {
 					delete(oldRoomClients, client)
 					if len(oldRoomClients) == 0 {
 						delete(rooms, client.Room)
 					}
-					// Unlock briefly to broadcast to old room, then re-lock for new room
 					roomsMu.Unlock()
 					broadcastUserList(client.Room)
 					roomsMu.Lock()
