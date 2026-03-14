@@ -23,8 +23,8 @@ class MessageBubble extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: const Icon(Icons.delete_outline, color: Colors.red),
-              title: const Text('Delete Message', style: TextStyle(color: Colors.red)),
+              leading: const Icon(Icons.delete_outline, color: Color(0xFF64748B)),
+              title: const Text('Delete for Me'),
               onTap: () {
                 if (message.id != null) {
                   context.read<WebSocketService>().deleteMessageForMe(message.id!);
@@ -32,6 +32,28 @@ class MessageBubble extends StatelessWidget {
                 Navigator.pop(ctx);
               },
             ),
+            if (isMe)
+              ListTile(
+                leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
+                title: const Text('Delete for Everyone', style: TextStyle(color: Colors.red)),
+                onTap: () async {
+                  Navigator.pop(ctx);
+                  final confirmed = await showDialog<bool>(
+                    context: context,
+                    builder: (dialogCtx) => AlertDialog(
+                      title: const Text('Delete for Everyone?'),
+                      content: const Text('This will remove the message for all participants.'),
+                      actions: [
+                        TextButton(onPressed: () => Navigator.pop(dialogCtx, false), child: const Text('Cancel')),
+                        TextButton(onPressed: () => Navigator.pop(dialogCtx, true), child: const Text('Delete', style: TextStyle(color: Colors.red))),
+                      ],
+                    ),
+                  );
+                  if (confirmed == true && message.id != null) {
+                    context.read<WebSocketService>().deleteMessageForEveryone(message.id!);
+                  }
+                },
+              ),
           ],
         ),
       ),
