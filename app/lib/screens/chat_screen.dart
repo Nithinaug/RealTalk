@@ -44,41 +44,38 @@ class _ChatScreenState extends State<ChatScreen> {
   Future<void> _autoConnect() async {
     final auth = context.read<AuthService>();
     final ws = context.read<WebSocketService>();
-    
-    if (auth.currentUsername != null && (ws.status != ConnectionStatus.connected || ws.currentRoomID != widget.roomID)) {
-      final appUrl = dotenv.maybeGet('APP_URL') ?? 'https://realtalk-f233.onrender.com';
-      final List<String> urlsToTry = [
-        appUrl,
-        'ws://10.0.2.2:8080/ws',
-        'ws://localhost:8080/ws',
-      ];
 
-      String lastError = 'Connection failed';
-      for (final url in urlsToTry) {
-        debugPrint('Attempting connection to: $url in room ${widget.roomID}');
+    if (auth.currentUsername == null) return;
+    if (ws.status == ConnectionStatus.connected && ws.currentRoomID == widget.roomID) return;
+
+    final appUrl = dotenv.maybeGet('APP_URL') ?? 'https://realtalk-f233.onrender.com';
+    final urls = [appUrl, 'ws://10.0.2.2:8080/ws'];
+
+    for (final url in urls) {
+      for (int attempt = 0; attempt < 3; attempt++) {
         await ws.connect(url, widget.roomID);
         if (ws.status == ConnectionStatus.connected) {
           await ws.join(auth.currentUsername!, widget.roomID, widget.roomName);
           _loadRooms();
           return;
         }
-        lastError = ws.errorMessage ?? 'Failed to connect to $url';
+        await Future.delayed(const Duration(seconds: 2));
       }
+    }
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(lastError),
-            backgroundColor: Colors.red.shade600,
-            duration: const Duration(seconds: 10),
-            action: SnackBarAction(
-              label: 'Retry',
-              textColor: Colors.white,
-              onPressed: _autoConnect,
-            ),
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: const Text('Could not connect to server'),
+          backgroundColor: Colors.red.shade600,
+          duration: const Duration(seconds: 10),
+          action: SnackBarAction(
+            label: 'Retry',
+            textColor: Colors.white,
+            onPressed: _autoConnect,
           ),
-        );
-      }
+        ),
+      );
     }
   }
 
@@ -165,7 +162,7 @@ class _ChatScreenState extends State<ChatScreen> {
               title: const Text('Leave Room'),
               onTap: () {
                 Navigator.pop(ctx);
-                Navigator.pop(context); // Pop ChatScreen
+                Navigator.pop(context);
               },
             ),
           ],
