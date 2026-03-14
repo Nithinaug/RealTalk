@@ -14,7 +14,7 @@ class WebSocketService extends ChangeNotifier {
   RealtimeChannel? _supabaseChannel;
 
   final List<ChatMessage> messages = [];
-  final List<String> onlineUsers = [];
+  List<String> onlineUsers = [];
 
   ConnectionStatus status = ConnectionStatus.disconnected;
   String? errorMessage;
@@ -329,27 +329,37 @@ class WebSocketService extends ChangeNotifier {
   }
 
   void _onData(dynamic data) {
+    debugPrint('WS Received RAW: $data');
     try {
       final json = jsonDecode(data as String) as Map<String, dynamic>;
-      if (json.containsKey('room_id')) {
-        json['roomID'] = json.remove('room_id');
+      
+      // Ensure roomID is present for the factory
+      if (json.containsKey('room') && !json.containsKey('room_id')) {
+        json['room_id'] = json['room'];
       }
+      
       final msg = ChatMessage.fromJson(json);
+      debugPrint('Parsed WS Type: ${msg.type}, Room in msg: ${msg.roomID}, Current Room: $_currentRoomID');
 
       if (msg.type == 'users') {
-        if (msg.roomID == _currentRoomID) {
-          onlineUsers
-            ..clear()
-            ..addAll(msg.users ?? []);
+        // If room ID matches or is empty (broadcast for current), update.
+        if (msg.roomID == _currentRoomID || msg.roomID == null || msg.roomID == '') {
+          onlineUsers = List<String>.from(msg.users ?? []);
+          debugPrint('Online users count updated to: ${onlineUsers.length}');
           notifyListeners();
+        } else {
+          debugPrint('Ignored users message: Room ID mismatch (${msg.roomID} != $_currentRoomID)');
         }
       } else if (msg.type == 'message') {
-        if (msg.roomID == _currentRoomID && !messages.any((m) => m.id == msg.id)) {
+        if ((msg.roomID == _currentRoomID || msg.roomID == null) && !messages.any((m) => m.id == msg.id)) {
            messages.add(msg);
+           notifyListeners();
         }
       }
       notifyListeners();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('Error parsing WS data: $e');
+    }
   }
 
   void _onError(Object error) {

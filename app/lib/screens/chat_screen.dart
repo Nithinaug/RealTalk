@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../services/auth_service.dart';
 import '../services/websocket_service.dart';
 import '../widgets/message_bubble.dart';
 import '../widgets/online_users_sheet.dart';
+import '../models/chat_message.dart';
 import 'login_screen.dart';
 import 'room_selection_screen.dart';
 
@@ -46,8 +48,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (auth.currentUsername != null && (ws.status != ConnectionStatus.connected || ws.currentRoomID != widget.roomID)) {
       final appUrl = dotenv.maybeGet('APP_URL') ?? 'https://realtalk-f233.onrender.com';
       final List<String> urlsToTry = [
-        appUrl,
         'ws://10.0.2.2:8080/ws',
+        appUrl,
         'ws://localhost:8080/ws',
       ];
 
@@ -124,6 +126,54 @@ class _ChatScreenState extends State<ChatScreen> {
     ) ?? false;
   }
 
+  void _showOptions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.delete_sweep_rounded, color: Color(0xFF475569)),
+              title: const Text('Clear Chat History for Me'),
+              onTap: () {
+                Navigator.pop(ctx);
+                showDialog(
+                  context: context,
+                  builder: (dialogCtx) => AlertDialog(
+                    title: const Text('Clear History?'),
+                    content: const Text('Clear room history for you? This will sync across your devices.'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(dialogCtx),
+                        child: const Text('Cancel'),
+                      ),
+                      TextButton(
+                        onPressed: () {
+                          context.read<WebSocketService>().clearRoomForMe();
+                          Navigator.pop(dialogCtx);
+                        },
+                        child: const Text('Clear', style: TextStyle(color: Colors.red)),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.meeting_room_rounded, color: Color(0xFF475569)),
+              title: const Text('Leave Room'),
+              onTap: () {
+                Navigator.pop(ctx);
+                Navigator.pop(context); // Pop ChatScreen
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<WebSocketService>();
@@ -158,14 +208,27 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           children: [
             Container(
-              padding: const EdgeInsets.only(top: 50, bottom: 20, left: 16, right: 16),
-              color: const Color(0xFFA6D6B8),
+              padding: const EdgeInsets.only(top: 60, bottom: 24, left: 20, right: 20),
+              decoration: const BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [Color(0xFF22C55E), Color(0xFF16A34A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+              ),
               width: double.infinity,
-              child: const Text('My Rooms', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              child: Text(
+                'My Rooms',
+                style: GoogleFonts.outfit(
+                  fontSize: 24,
+                  fontWeight: FontWeight.w800,
+                  color: Colors.white,
+                ),
+              ),
             ),
             Expanded(
               child: ListView.builder(
-                padding: EdgeInsets.zero,
+                padding: const EdgeInsets.symmetric(vertical: 8),
                 itemCount: _myRooms.length,
                 itemBuilder: (ctx, i) {
                   final room = _myRooms[i];
@@ -176,69 +239,85 @@ class _ChatScreenState extends State<ChatScreen> {
                   final auth = context.read<AuthService>();
                   final isCreator = creatorId == auth.currentUser?.id;
 
-                  return ListTile(
-                    tileColor: isActive ? const Color(0xFFECFDF5) : null,
-                    leading: const Icon(Icons.forum_outlined, color: Color(0xFF22C55E)),
-                    title: Text(roomName, style: TextStyle(fontWeight: isActive ? FontWeight.bold : FontWeight.normal)),
-                    trailing: isCreator 
-                      ? IconButton(
-                          icon: const Icon(Icons.delete_outline, color: Colors.error, size: 20),
-                          onPressed: () async {
-                            final confirm = await _showConfirm('Delete Room?', 'Delete this room for everyone?');
-                            if (confirm) {
-                              await svc.deleteRoom(roomId);
-                              _loadRooms();
-                              if (isActive) Navigator.pop(context);
-                            }
-                          },
-                        )
-                      : IconButton(
-                          icon: const Icon(Icons.logout, color: Colors.orange, size: 20),
-                          onPressed: () async {
-                            final confirm = await _showConfirm('Exit Room?', 'Remove this room from your list?');
-                            if (confirm) {
-                              await svc.exitRoom(roomId);
-                              _loadRooms();
-                              if (isActive) Navigator.pop(context);
-                            }
-                          },
+                  return Container(
+                    margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: isActive ? const Color(0xFFF0FDF4) : Colors.transparent,
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: ListTile(
+                      leading: Icon(
+                        Icons.forum_rounded,
+                        color: isActive ? const Color(0xFF22C55E) : const Color(0xFF94A3B8),
+                        size: 22,
+                      ),
+                      title: Text(
+                        roomName,
+                        style: GoogleFonts.inter(
+                          fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                          color: isActive ? const Color(0xFF166534) : const Color(0xFF334155),
                         ),
-                    onTap: () {
-                      if (!isActive) {
-                        Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ChatScreen(roomID: roomId, roomName: roomName)));
-                      } else {
-                        Navigator.pop(context);
-                      }
-                    },
+                      ),
+                      trailing: isCreator 
+                        ? IconButton(
+                            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 18),
+                            onPressed: () async {
+                              final confirm = await _showConfirm('Delete Room?', 'Delete this room for everyone?');
+                              if (confirm) {
+                                await svc.deleteRoom(roomId);
+                                _loadRooms();
+                                if (isActive) Navigator.pop(context);
+                              }
+                            },
+                          )
+                        : null,
+                      onTap: () {
+                        if (!isActive) {
+                          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ChatScreen(roomID: roomId, roomName: roomName)));
+                        } else {
+                          Navigator.pop(context);
+                        }
+                      },
+                    ),
                   );
                 },
               ),
             ),
-            const Divider(),
+            const Divider(height: 1),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: ElevatedButton(
+              padding: const EdgeInsets.all(20.0),
+              child: ElevatedButton.icon(
                 onPressed: () {
                   Navigator.push(context, MaterialPageRoute(builder: (_) => const RoomSelectionScreen()));
                 },
+                icon: const Icon(Icons.add_circle_rounded, size: 20),
+                label: Text(
+                  'Join / Create Room',
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w700),
+                ),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.white,
                   foregroundColor: const Color(0xFF22C55E),
+                  elevation: 0,
                   side: const BorderSide(color: Color(0xFF22C55E), width: 2),
-                  minimumSize: const Size(double.infinity, 50),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  minimumSize: const Size(double.infinity, 54),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                 ),
-                child: const Text('+ Join / Create Room', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
               ),
             ),
-            const SizedBox(height: 16),
-            const Divider(),
             ListTile(
-              leading: const Icon(Icons.logout, color: Colors.red),
-              title: const Text('Logout', style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+              leading: const Icon(Icons.logout_rounded, color: Color(0xFFEF4444)),
+              title: Text(
+                'Logout',
+                style: GoogleFonts.inter(
+                  color: const Color(0xFFEF4444),
+                  fontWeight: FontWeight.w700,
+                ),
+              ),
               onTap: _logout,
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 24),
           ],
         ),
       ),
@@ -246,70 +325,68 @@ class _ChatScreenState extends State<ChatScreen> {
         child: Column(
           children: [
             Container(
-              color: const Color(0xFFA6D6B8),
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 8, vertical: 14),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withOpacity(0.03),
+                    spreadRadius: 0,
+                    blurRadius: 10,
+                    offset: const Offset(0, 4),
+                  ),
+                ],
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               child: Row(
                 children: [
                   IconButton(
-                    icon: const Icon(Icons.menu),
                     onPressed: () => _scaffoldKey.currentState?.openDrawer(),
+                    icon: const Icon(Icons.menu_rounded,
+                        color: Color(0xFF0F172A), size: 24),
                   ),
-                  const SizedBox(width: 8),
+                  const SizedBox(width: 4),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Room: ${widget.roomName}',
-                          style: const TextStyle(
+                          widget.roomName,
+                          style: GoogleFonts.outfit(
                             fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF0F172A),
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF0F172A),
                           ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
                         ),
-                        Text(
-                          'User: ${svc.username}',
-                          style: const TextStyle(
-                              fontSize: 12, color: Color(0xFF475569)),
+                        const SizedBox(height: 2),
+                        GestureDetector(
+                          onTap: () => setState(() => _usersVisible = !_usersVisible),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 8,
+                                height: 8,
+                                decoration: const BoxDecoration(
+                                  color: Color(0xFF22C55E),
+                                  shape: BoxShape.circle,
+                                ),
+                              ),
+                              const SizedBox(width: 6),
+                              Text(
+                                '${svc.onlineUsers.length} online',
+                                style: GoogleFonts.inter(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w500,
+                                  color: const Color(0xFF64748B),
+                                ),
+                              ),
+                            ],
+                          ),
                         ),
                       ],
                     ),
                   ),
-                  GestureDetector(
-                    onTap: () => setState(() => _usersVisible = !_usersVisible),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFE2E8F0)),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            width: 8,
-                            height: 8,
-                            decoration: const BoxDecoration(
-                              color: Color(0xFF22C55E),
-                              shape: BoxShape.circle,
-                            ),
-                          ),
-                          const SizedBox(width: 6),
-                          Text(
-                            '${svc.onlineUsers.length}',
-                            style: const TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: Color(0xFF0F172A),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 4),
                   IconButton(
                     onPressed: () {
                       showDialog(
@@ -333,15 +410,9 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       );
                     },
-                    icon: const Icon(Icons.delete_sweep_rounded),
-                    color: const Color(0xFF475569),
-                    tooltip: 'Clear room for me',
-                  ),
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(Icons.meeting_room_rounded),
-                    color: const Color(0xFF475569),
-                    tooltip: 'Leave room',
+                    icon: const Icon(Icons.delete_sweep_rounded, size: 24),
+                    color: const Color(0xFF64748B),
+                    tooltip: 'Clear chat for me',
                   ),
                 ],
               ),
@@ -353,37 +424,20 @@ class _ChatScreenState extends State<ChatScreen> {
                 onClose: () => setState(() => _usersVisible = false),
               ),
             Expanded(
-              child: svc.messages.isEmpty
-                  ? const Center(
-                      child: Column(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.forum_outlined,
-                              size: 56, color: Color(0xFFCBD5E1)),
-                          SizedBox(height: 12),
-                          Text(
-                            'No messages yet.',
-                            textAlign: TextAlign.center,
-                            style: TextStyle(
-                                color: Color(0xFF94A3B8), fontSize: 16),
-                          ),
-                        ],
-                      ),
-                    )
-                  : ListView.builder(
-                      controller: _scrollCtrl,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 8),
-                      itemCount: svc.messages.length,
-                      itemBuilder: (_, i) {
-                        final msg = svc.messages[i];
-                        final isMe = msg.user == svc.username;
-                        return MessageBubble(
-                          message: msg,
-                          isMe: isMe,
-                        );
-                      },
-                    ),
+              child: ListView.builder(
+                controller: _scrollCtrl,
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 12, vertical: 8),
+                itemCount: svc.messages.length,
+                itemBuilder: (_, i) {
+                  final msg = svc.messages[i];
+                  final isMe = msg.user == svc.username;
+                  return MessageBubble(
+                    message: msg,
+                    isMe: isMe,
+                  );
+                },
+              ),
             ),
             Container(
               padding: const EdgeInsets.fromLTRB(12, 8, 12, 12),
