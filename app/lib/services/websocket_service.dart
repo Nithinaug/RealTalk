@@ -103,9 +103,19 @@ class WebSocketService extends ChangeNotifier {
           );
           
           if (!messages.any((m) => m.id == newMessage.id)) {
-             messages.add(newMessage);
-             notifyListeners();
+            messages.add(newMessage);
+            notifyListeners();
           }
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.delete,
+        schema: 'public',
+        table: 'messages',
+        callback: (payload) {
+          final msgId = payload.oldRecord['id'].toString();
+          messages.removeWhere((m) => m.id == msgId);
+          notifyListeners();
         },
       )
       .onPostgresChanges(
@@ -278,7 +288,16 @@ class WebSocketService extends ChangeNotifier {
       messages.removeWhere((m) => m.id == msgId);
       notifyListeners();
     } catch (e) {
-      debugPrint('Error deleting message: $e');
+      debugPrint('Error deleting message for me: $e');
+    }
+  }
+
+  Future<void> deleteMessageForEveryone(String msgId) async {
+    try {
+      await _supabase.from('messages').delete().eq('id', msgId);
+      // Realtime listener will handle local state update
+    } catch (e) {
+      debugPrint('Error deleting message for everyone: $e');
     }
   }
 

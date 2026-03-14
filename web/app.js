@@ -592,10 +592,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "name";
-    if (sameUser) {
-      nameSpan.style.display = "none";
-    }
-    nameSpan.textContent = user || "Anonymous";
+    nameSpan.textContent = sameUser ? "You" : (user || "Anonymous");
 
     const timeSpan = document.createElement("span");
     timeSpan.className = "time";
@@ -604,10 +601,12 @@ document.addEventListener("DOMContentLoaded", () => {
       timeSpan.textContent = date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
     }
 
-    const textNode = document.createTextNode(text);
+    const contentSpan = document.createElement("span");
+    contentSpan.className = "msg-content";
+    contentSpan.textContent = text;
 
     d.appendChild(nameSpan);
-    d.appendChild(textNode);
+    d.appendChild(contentSpan);
     d.appendChild(timeSpan);
 
     const actions = document.createElement("div");
