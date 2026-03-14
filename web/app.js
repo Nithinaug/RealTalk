@@ -565,8 +565,10 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!text || !joined || !currentRoom) return;
 
     try {
+      const { data: authData } = await client.auth.getUser();
       const { data, error } = await client.from('messages').insert({
         username: myName,
+        user_id: authData?.user?.id,
         text: text,
         room_id: currentRoom.id
       }).select().single();
