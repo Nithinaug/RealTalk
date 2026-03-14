@@ -48,8 +48,8 @@ class _ChatScreenState extends State<ChatScreen> {
     if (auth.currentUsername != null && (ws.status != ConnectionStatus.connected || ws.currentRoomID != widget.roomID)) {
       final appUrl = dotenv.maybeGet('APP_URL') ?? 'https://realtalk-f233.onrender.com';
       final List<String> urlsToTry = [
-        'ws://10.0.2.2:8080/ws',
         appUrl,
+        'ws://10.0.2.2:8080/ws',
         'ws://localhost:8080/ws',
       ];
 
