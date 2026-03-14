@@ -16,6 +16,11 @@ let socket;
 let myName = "";
 let joined = false;
 
+function isMe(username) {
+  if (!username || !myName) return false;
+  return String(username).trim().toLowerCase() === String(myName).trim().toLowerCase();
+}
+
 document.addEventListener("DOMContentLoaded", () => {
   const authWrapper = document.getElementById("auth-container");
   const roomWrapper = document.getElementById("room-selection-container");
@@ -408,7 +413,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   async function onAuthenticated(user) {
-    myName = user.user_metadata.username || user.email.split('@')[0];
+    myName = (user.user_metadata.username || user.email.split('@')[0]).trim();
+    console.log("Authenticated as:", myName);
     displayName.textContent = myName;
     authWrapper.style.display = "none";
     roomSelectionContainer.style.display = "flex";
@@ -474,7 +480,7 @@ document.addEventListener("DOMContentLoaded", () => {
         table: 'messages',
         filter: `room_id=eq.${currentRoom.id}`
       }, payload => {
-        if (payload.new.username !== myName) {
+        if (!isMe(payload.new.username)) {
           addMsg(payload.new.username, payload.new.text, payload.new.created_at, payload.new.id);
         }
       })
@@ -580,12 +586,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function createMsgElement(user, text, timestamp, id) {
     const d = document.createElement("div");
-    d.className = user === myName ? "msg me" : "msg other";
+    const sameUser = isMe(user);
+    d.className = sameUser ? "msg me" : "msg other";
     if (id) d.setAttribute("data-id", id);
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "name";
-    if (user === myName) {
+    if (sameUser) {
       nameSpan.style.display = "none";
     }
     nameSpan.textContent = user || "Anonymous";
@@ -615,7 +622,7 @@ document.addEventListener("DOMContentLoaded", () => {
     actions.appendChild(delMeBtn);
 
     // Delete for Everyone (Only for sender)
-    if (user === myName) {
+    if (sameUser) {
       const delAllBtn = document.createElement("button");
       delAllBtn.className = "btn-delete all";
       delAllBtn.title = "Delete for Everyone";

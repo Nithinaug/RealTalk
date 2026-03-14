@@ -100,7 +100,12 @@ CREATE POLICY "Allow creator to delete rooms" ON rooms FOR DELETE USING (auth.ui
 -- Messages
 CREATE POLICY "Anyone can read messages" ON messages FOR SELECT USING (true);
 CREATE POLICY "Authenticated users can insert messages" ON messages FOR INSERT WITH CHECK (auth.uid() IS NOT NULL);
-CREATE POLICY "Allow sender to delete for everyone" ON messages FOR DELETE USING (auth.uid()::text IN (SELECT auth.uid()::text FROM auth.users WHERE email = username || '@example.com'));
+CREATE POLICY "Allow sender to delete for everyone" ON messages FOR DELETE USING (
+    (auth.uid() IS NOT NULL) AND (
+        username = (auth.jwt() -> 'user_metadata' ->> 'username') OR 
+        username = split_part(auth.jwt() ->> 'email', '@', 1)
+    )
+);
 
 -- User Room Memberships
 CREATE POLICY "Allow users to see their own room memberships" ON user_rooms FOR SELECT USING (auth.uid() = user_id);
