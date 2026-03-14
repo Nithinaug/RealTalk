@@ -652,14 +652,23 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   async function deleteMessageForEveryone(msgId) {
-    if (!msgId) return;
+    console.log("deleteMessageForEveryone called with msgId:", msgId);
+    if (!msgId) {
+      alert("Cannot delete: message ID is missing. Please refresh and try again.");
+      return;
+    }
     if (!confirm("Delete this message for everyone?")) return;
     const { error } = await client
       .from('messages')
       .delete()
       .eq('id', msgId);
 
-    if (error) return alert("Error deleting message for everyone: " + error.message);
+    console.log("Delete result - error:", error);
+    if (error) {
+      alert("Delete failed: " + error.message + "\nCode: " + error.code);
+      return;
+    }
+    console.log("Delete succeeded for msgId:", msgId);
     // Realtime will handle removal
   }
 
