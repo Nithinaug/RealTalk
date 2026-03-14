@@ -565,23 +565,23 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!text || !joined || !currentRoom) return;
 
     try {
-      console.log("Inserting message to Supabase. myName:", myName, "text:", text);
-      const { error } = await client.from('messages').insert({
+      const { data, error } = await client.from('messages').insert({
         username: myName,
         text: text,
         room_id: currentRoom.id
-      });
+      }).select().single();
 
       if (error) {
         console.error("Save Error:", error);
-        alert("Error saving message to database. It might not persist if you leave the room.");
+        alert("Error saving message to database.");
+        return;
       }
 
-      addMsg(myName, text, new Date().toISOString());
+      // Use the real ID returned from Supabase so delete actions work immediately
+      addMsg(myName, text, new Date().toISOString(), data?.id);
       msgBox.value = "";
 
       if (socket && socket.readyState === 1) {
-
         socket.send(JSON.stringify({ type: "message", user: myName, text: text, room: currentRoom.id }));
       }
     } catch (e) {
