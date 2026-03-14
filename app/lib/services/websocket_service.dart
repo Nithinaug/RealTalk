@@ -12,6 +12,7 @@ class WebSocketService extends ChangeNotifier {
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   RealtimeChannel? _supabaseChannel;
+  Timer? _pingTimer;
 
   final List<ChatMessage> messages = [];
   List<String> onlineUsers = [];
@@ -31,57 +32,56 @@ class WebSocketService extends ChangeNotifier {
 
   Future<void> _fetchHistory() async {
     if (_currentRoomID.isEmpty) return;
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
 
-      final clearData = await _supabase
-          .from('user_room_clears')
-          .select('cleared_at')
-          .eq('user_id', user.id)
-          .eq('room_id', _currentRoomID)
-          .maybeSingle();
-      
-      final clearedAt = clearData?['cleared_at'] ?? '1970-01-01T00:00:00Z';
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
 
-      final deletedData = await _supabase
-          .from('user_deleted_messages')
-          .select('message_id')
-          .eq('user_id', user.id);
-      
-      final deletedIDs = (deletedData as List).map((d) => d['message_id'].toString()).toList();
+    final clearRecord = await _supabase
+        .from('user_room_clears')
+        .select('cleared_at')
+        .eq('user_id', user.id)
+        .eq('room_id', _currentRoomID)
+        .maybeSingle();
 
-      final data = await _supabase
-          .from('messages')
-          .select()
-          .eq('room_id', _currentRoomID)
-          .gt('created_at', clearedAt)
-          .order('created_at', ascending: true)
-          .limit(100);
-      
-      messages.clear();
-      for (var row in data) {
-        if (!deletedIDs.contains(row['id'].toString())) {
-          messages.add(ChatMessage(
-            id: row['id'].toString(),
-            type: 'message',
-            user: row['username'],
-            text: row['text'],
-            roomID: row['room_id'],
-            timestamp: DateTime.parse(row['created_at']).toLocal(),
-          ));
-        }
+    final clearedAt = clearRecord?['cleared_at'] ?? '1970-01-01T00:00:00Z';
+
+    final deletedRecords = await _supabase
+        .from('user_deleted_messages')
+        .select('message_id')
+        .eq('user_id', user.id);
+
+    final deletedIds = (deletedRecords as List)
+        .map((d) => d['message_id'].toString())
+        .toList();
+
+    final rows = await _supabase
+        .from('messages')
+        .select()
+        .eq('room_id', _currentRoomID)
+        .gt('created_at', clearedAt)
+        .order('created_at', ascending: true)
+        .limit(100);
+
+    messages.clear();
+    for (final row in rows) {
+      if (!deletedIds.contains(row['id'].toString())) {
+        messages.add(ChatMessage(
+          id: row['id'].toString(),
+          type: 'message',
+          user: row['username'],
+          text: row['text'],
+          roomID: row['room_id'],
+          timestamp: DateTime.parse(row['created_at']).toLocal(),
+        ));
       }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error fetching history: $e');
     }
+    notifyListeners();
   }
 
   void _setupSupabaseRealtime() {
     if (_currentRoomID.isEmpty) return;
     _supabaseChannel?.unsubscribe();
-    
+
     _supabaseChannel = _supabase.channel('room:$_currentRoomID')
       .onPostgresChanges(
         event: PostgresChangeEvent.insert,
@@ -93,7 +93,7 @@ class WebSocketService extends ChangeNotifier {
           value: _currentRoomID,
         ),
         callback: (payload) {
-          final newMessage = ChatMessage(
+          final incoming = ChatMessage(
             id: payload.newRecord['id'].toString(),
             type: 'message',
             user: payload.newRecord['username'],
@@ -101,9 +101,8 @@ class WebSocketService extends ChangeNotifier {
             roomID: payload.newRecord['room_id'],
             timestamp: DateTime.parse(payload.newRecord['created_at']).toLocal(),
           );
-          
-          if (!messages.any((m) => m.id == newMessage.id)) {
-            messages.add(newMessage);
+          if (!messages.any((m) => m.id == incoming.id)) {
+            messages.add(incoming);
             notifyListeners();
           }
         },
@@ -134,14 +133,15 @@ class WebSocketService extends ChangeNotifier {
         table: 'user_room_clears',
         callback: (payload) {
           final user = _supabase.auth.currentUser;
-          if (user != null && 
-              payload.newRecord['room_id'] == _currentRoomID && 
+          if (user != null &&
+              payload.newRecord['room_id'] == _currentRoomID &&
               payload.newRecord['user_id'] == user.id) {
             messages.clear();
             notifyListeners();
           }
         },
-      ).subscribe();
+      )
+      .subscribe();
   }
 
   Future<void> connect(String url, String roomID) async {
@@ -163,21 +163,17 @@ class WebSocketService extends ChangeNotifier {
       notifyListeners();
 
       _pingTimer?.cancel();
-      _pingTimer = Timer.periodic(const Duration(seconds: 15), (timer) {
+      _pingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
         if (_channel != null && status == ConnectionStatus.connected) {
-           _send(ChatMessage(type: 'ping'));
+          _send(ChatMessage(type: 'ping'));
         }
       });
 
       _subscription?.cancel();
-      _subscription = _channel!.stream.listen(
-        _onData,
-        onError: _onError,
-        onDone: _onDone,
-      );
+      _subscription = _channel!.stream.listen(_onData, onError: _onError, onDone: _onDone);
     } catch (e) {
       status = ConnectionStatus.error;
-      errorMessage = 'WebSocket Error: $e.';
+      errorMessage = 'Connection failed.';
       notifyListeners();
     }
   }
@@ -187,11 +183,11 @@ class WebSocketService extends ChangeNotifier {
     _currentRoomID = roomID;
     _currentRoomName = roomName;
     _joined = true;
-    
+
     final user = _supabase.auth.currentUser;
     if (user != null) {
-      final roomData = await _supabase.from('rooms').select().eq('id', roomID).maybeSingle();
-      if (roomData == null) {
+      final existing = await _supabase.from('rooms').select().eq('id', roomID).maybeSingle();
+      if (existing == null) {
         await _supabase.from('rooms').insert({'id': roomID, 'name': roomName, 'creator_id': user.id});
       }
       await _supabase.from('user_rooms').upsert({'user_id': user.id, 'room_id': roomID});
@@ -202,128 +198,89 @@ class WebSocketService extends ChangeNotifier {
   }
 
   Future<List<Map<String, dynamic>>> getJoinedRooms() async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return [];
+    final user = _supabase.auth.currentUser;
+    if (user == null) return [];
 
-      final data = await _supabase
-          .from('user_rooms')
-          .select('rooms(id, name, creator_id)')
-          .eq('user_id', user.id);
-      
-      return (data as List).map((item) {
-        final room = item['rooms'];
-        if (room == null) return null;
-        return room as Map<String, dynamic>;
-      }).whereType<Map<String, dynamic>>().toList();
-    } catch (e) {
-      debugPrint('Error fetching joined rooms: $e');
-      return [];
-    }
+    final data = await _supabase
+        .from('user_rooms')
+        .select('rooms(id, name, creator_id)')
+        .eq('user_id', user.id);
+
+    return (data as List)
+        .map((item) => item['rooms'] as Map<String, dynamic>?)
+        .whereType<Map<String, dynamic>>()
+        .toList();
   }
 
   Future<void> deleteRoom(String id) async {
-    try {
-      await _supabase.from('rooms').delete().eq('id', id);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error deleting room: $e');
-    }
+    await _supabase.from('rooms').delete().eq('id', id);
+    notifyListeners();
   }
 
   Future<void> exitRoom(String id) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-      await _supabase.from('user_rooms').delete().eq('user_id', user.id).eq('room_id', id);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error exiting room: $e');
-    }
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    await _supabase.from('user_rooms').delete().eq('user_id', user.id).eq('room_id', id);
+    notifyListeners();
   }
 
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || _currentRoomID.isEmpty) return;
-    
-    if (!_joined && _username.isNotEmpty) {
-       await connect(_serverUrl, _currentRoomID);
-       if (status == ConnectionStatus.connected) join(_username, _currentRoomID, _currentRoomName);
-    }
 
-    try {
-      final response = await _supabase.from('messages').insert({
-        'username': _username,
-        'text': text.trim(),
-        'room_id': _currentRoomID,
-      }).select().single();
+    final user = _supabase.auth.currentUser;
+    final response = await _supabase.from('messages').insert({
+      'username': _username,
+      'user_id': user?.id,
+      'text': text.trim(),
+      'room_id': _currentRoomID,
+    }).select().single();
 
-      if (_joined) {
-        final msg = ChatMessage(
-          id: response['id'],
-          type: 'message', 
-          user: _username, 
-          text: text.trim(), 
-          roomID: _currentRoomID
-        );
-        _send(msg);
-        if (!messages.any((m) => m.id == msg.id)) {
-          messages.add(msg);
-          notifyListeners();
-        }
-      }
-    } catch (e) {
-      debugPrint('Error saving to Supabase: $e');
+    final msg = ChatMessage(
+      id: response['id'],
+      type: 'message',
+      user: _username,
+      text: text.trim(),
+      roomID: _currentRoomID,
+    );
+
+    _send(msg);
+    if (!messages.any((m) => m.id == msg.id)) {
+      messages.add(msg);
+      notifyListeners();
     }
   }
 
   Future<void> deleteMessageForMe(String msgId) async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null) return;
-
-      await _supabase.from('user_deleted_messages').insert({
-        'user_id': user.id,
-        'message_id': msgId,
-      });
-      messages.removeWhere((m) => m.id == msgId);
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error deleting message for me: $e');
-    }
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    await _supabase.from('user_deleted_messages').insert({
+      'user_id': user.id,
+      'message_id': msgId,
+    });
+    messages.removeWhere((m) => m.id == msgId);
+    notifyListeners();
   }
 
   Future<void> deleteMessageForEveryone(String msgId) async {
-    try {
-      await _supabase.from('messages').delete().eq('id', msgId);
-      // Realtime listener will handle local state update
-    } catch (e) {
-      debugPrint('Error deleting message for everyone: $e');
-    }
+    await _supabase.from('messages').delete().eq('id', msgId);
   }
 
   Future<void> clearRoomForMe() async {
-    try {
-      final user = _supabase.auth.currentUser;
-      if (user == null || _currentRoomID.isEmpty) return;
-
-      await _supabase.from('user_room_clears').upsert({
-        'user_id': user.id,
-        'room_id': _currentRoomID,
-        'cleared_at': DateTime.now().toIso8601String(),
-      });
-      messages.clear();
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error clearing room: $e');
-    }
+    final user = _supabase.auth.currentUser;
+    if (user == null || _currentRoomID.isEmpty) return;
+    await _supabase.from('user_room_clears').upsert({
+      'user_id': user.id,
+      'room_id': _currentRoomID,
+      'cleared_at': DateTime.now().toIso8601String(),
+    });
+    messages.clear();
+    notifyListeners();
   }
 
   void clearMessages() {
     messages.clear();
     notifyListeners();
   }
-
-  Timer? _pingTimer;
 
   void disconnect() {
     _subscription?.cancel();
@@ -339,56 +296,59 @@ class WebSocketService extends ChangeNotifier {
 
   void _send(ChatMessage msg) {
     if (_channel == null) return;
-    try {
-      final map = msg.toJson();
-      _channel!.sink.add(jsonEncode(map));
-    } catch (e) {
-      debugPrint('Failed to send WS message: $e');
-    }
+    _channel!.sink.add(jsonEncode(msg.toJson()));
   }
 
   void _onData(dynamic data) {
-    debugPrint('WS Received RAW: $data');
     try {
       final json = jsonDecode(data as String) as Map<String, dynamic>;
-      
-      // Ensure roomID is present for the factory
       if (json.containsKey('room') && !json.containsKey('room_id')) {
         json['room_id'] = json['room'];
       }
-      
+
       final msg = ChatMessage.fromJson(json);
-      debugPrint('Parsed WS Type: ${msg.type}, Room in msg: ${msg.roomID}, Current Room: $_currentRoomID');
 
       if (msg.type == 'users') {
-        // If room ID matches or is empty (broadcast for current), update.
         if (msg.roomID == _currentRoomID || msg.roomID == null || msg.roomID == '') {
           onlineUsers = List<String>.from(msg.users ?? []);
-          debugPrint('Online users count updated to: ${onlineUsers.length}');
           notifyListeners();
-        } else {
-          debugPrint('Ignored users message: Room ID mismatch (${msg.roomID} != $_currentRoomID)');
         }
       } else if (msg.type == 'message') {
-        if ((msg.roomID == _currentRoomID || msg.roomID == null) && !messages.any((m) => m.id == msg.id)) {
-           messages.add(msg);
-           notifyListeners();
+        if ((msg.roomID == _currentRoomID || msg.roomID == null) &&
+            !messages.any((m) => m.id == msg.id)) {
+          messages.add(msg);
+          notifyListeners();
         }
       }
-      notifyListeners();
-    } catch (e) {
-      debugPrint('Error parsing WS data: $e');
-    }
+    } catch (_) {}
   }
 
   void _onError(Object error) {
-    debugPrint('WebSocket Error: $error');
+    status = ConnectionStatus.error;
+    notifyListeners();
+  }
+
+  void _onDone() {
+    status = ConnectionStatus.disconnected;
+    _joined = false;
+    notifyListeners();
+    Future.delayed(const Duration(seconds: 3), () {
+      if (_username.isNotEmpty && status == ConnectionStatus.disconnected) {
+        connect(_serverUrl, _currentRoomID).then((_) {
+          if (status == ConnectionStatus.connected) {
+            join(_username, _currentRoomID, _currentRoomName);
+          }
+        });
+      }
+    });
   }
 
   String _toWsUrl(String url) {
     url = url.trim();
     if (url.isEmpty) return '';
-    bool isLocal = url.contains('localhost') || url.contains('127.0.0.1') || url.contains('10.0.2.2');
+    final isLocal = url.contains('localhost') ||
+        url.contains('127.0.0.1') ||
+        url.contains('10.0.2.2');
     if (url.startsWith('https://')) {
       url = url.replaceFirst('https://', 'wss://');
     } else if (url.startsWith('http://')) {
@@ -407,21 +367,5 @@ class WebSocketService extends ChangeNotifier {
   void dispose() {
     disconnect();
     super.dispose();
-  }
-
-  void _onDone() {
-    status = ConnectionStatus.disconnected;
-    _joined = false;
-    notifyListeners();
-    debugPrint('WebSocket closed. Retrying in 3 seconds...');
-    Future.delayed(const Duration(seconds: 3), () {
-      if (_username.isNotEmpty && status == ConnectionStatus.disconnected) {
-        connect(_serverUrl, _currentRoomID).then((_) {
-          if (status == ConnectionStatus.connected) {
-            join(_username, _currentRoomID, _currentRoomName);
-          }
-        });
-      }
-    });
   }
 }
