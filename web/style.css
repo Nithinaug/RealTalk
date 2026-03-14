@@ -139,7 +139,6 @@ body {
   font-weight: 700;
 }
 
-/* Room Selection Styles */
 #rooms-list-view {
   display: flex;
   flex-direction: column;
@@ -341,7 +340,7 @@ body {
 
 .msg.me {
   align-self: flex-end !important;
-  background: var(--primary);
+  background: #22c55e !important; /* Force green */
   color: white;
   border-bottom-right-radius: 4px;
 }
@@ -610,13 +609,13 @@ body {
 }
 
 .msg:hover {
-  margin-top: 35px;
+  margin-top: 45px; /* Increased to avoid overlap */
 }
 
 .msg:hover .msg-actions {
   opacity: 1;
   pointer-events: auto;
-  top: -10px;
+  top: -15px; /* Moved higher */
 }
 
 .btn-delete {
@@ -659,9 +658,11 @@ body {
   .msg-actions {
     top: -30px !important;
   }
+
   .btn-delete .label {
     display: none;
   }
+
   .btn-delete {
     padding: 6px;
   }

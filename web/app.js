@@ -18,7 +18,9 @@ let joined = false;
 
 function isMe(username) {
   if (!username || !myName) return false;
-  return String(username).trim().toLowerCase() === String(myName).trim().toLowerCase();
+  const match = String(username).trim().toLowerCase() === String(myName).trim().toLowerCase();
+  console.log(`isMe check: msgUser="${username}", myName="${myName}", match=${match}`);
+  return match;
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -413,8 +415,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
 
   async function onAuthenticated(user) {
-    myName = (user.user_metadata.username || user.email.split('@')[0]).trim();
-    console.log("Authenticated as:", myName);
+    myName = (user.user_metadata?.username || user.email.split('@')[0] || "Unknown").trim();
+    console.log("Authenticated as:", myName, "Full Metadata:", user.user_metadata);
     displayName.textContent = myName;
     authWrapper.style.display = "none";
     roomSelectionContainer.style.display = "flex";
@@ -558,6 +560,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!text || !joined || !currentRoom) return;
 
     try {
+      console.log("Inserting message to Supabase. myName:", myName, "text:", text);
       const { error } = await client.from('messages').insert({
         username: myName,
         text: text,
@@ -587,12 +590,16 @@ document.addEventListener("DOMContentLoaded", () => {
   function createMsgElement(user, text, timestamp, id) {
     const d = document.createElement("div");
     const sameUser = isMe(user);
+    console.log(`createMsgElement: user="${user}", myName="${myName}", sameUser=${sameUser}`);
     d.className = sameUser ? "msg me" : "msg other";
     if (id) d.setAttribute("data-id", id);
 
     const nameSpan = document.createElement("span");
     nameSpan.className = "name";
-    nameSpan.textContent = sameUser ? "You" : (user || "Anonymous");
+    nameSpan.textContent = sameUser ? "You" : (user || "Anonymous User");
+    if (!user && !sameUser) {
+        console.warn("Message has no username attached!");
+    }
 
     const timeSpan = document.createElement("span");
     timeSpan.className = "time";
