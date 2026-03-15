@@ -177,8 +177,9 @@ class WebSocketService extends ChangeNotifier {
       _subscription?.cancel();
       _subscription = _channel!.stream.listen(_onData, onError: _onError, onDone: _onDone);
     } catch (e) {
+      debugPrint('WebSocket connection error: $e');
       status = ConnectionStatus.error;
-      errorMessage = 'Connection failed.';
+      errorMessage = 'Connection failed: $e';
       notifyListeners();
     }
   }

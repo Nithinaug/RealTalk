@@ -438,7 +438,7 @@ class _ChatScreenState extends State<ChatScreen> {
                 itemCount: svc.messages.length,
                 itemBuilder: (_, i) {
                   final msg = svc.messages[i];
-                  final isMe = msg.user == svc.username;
+                  final isMe = msg.user?.toLowerCase() == svc.username.toLowerCase();
                   return MessageBubble(
                     message: msg,
                     isMe: isMe,

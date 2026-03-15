@@ -18,7 +18,13 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		origin := strings.TrimRight(r.Header.Get("Origin"), "/")
+		origin := r.Header.Get("Origin")
+		// Allow empty origin (common for mobile apps)
+		if origin == "" {
+			return true
+		}
+		
+		origin = strings.TrimRight(origin, "/")
 		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 		if allowedOrigins == "" {
 			return true
