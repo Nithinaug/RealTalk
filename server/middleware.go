@@ -1,12 +1,7 @@
 package main
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
-	"encoding/base64"
-	"encoding/json"
 	"fmt"
-	"math/big"
 	"net/http"
 	"os"
 	"strings"
@@ -80,12 +75,8 @@ func RateLimitMiddleware() gin.HandlerFunc {
 	limiter := NewIPRateLimiter(tps, burst)
 
 	return func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/ws") {
-			c.Next()
-			return
-		}
-		clientIP := c.ClientIP()
-		l := limiter.GetLimiter(clientIP)
+		ip := c.ClientIP()
+		l := limiter.GetLimiter(ip)
 
 		if !l.Allow() {
 			c.Header("X-RateLimit-Limit", fmt.Sprintf("%.2f", tps))
@@ -126,32 +117,10 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); ok {
-				return []byte(jwtSecret), nil
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 			}
-			if _, ok := token.Method.(*jwt.SigningMethodECDSA); ok {
-				if strings.HasPrefix(strings.TrimSpace(jwtSecret), "{") {
-					var jwk struct {
-						X string `json:"x"`
-						Y string `json:"y"`
-					}
-					if err := json.Unmarshal([]byte(jwtSecret), &jwk); err == nil {
-						xBytes, _ := base64.RawURLEncoding.DecodeString(jwk.X)
-						yBytes, _ := base64.RawURLEncoding.DecodeString(jwk.Y)
-						return &ecdsa.PublicKey{
-							Curve: elliptic.P256(),
-							X:     new(big.Int).SetBytes(xBytes),
-							Y:     new(big.Int).SetBytes(yBytes),
-						}, nil
-					}
-				}
-				pubKey, err := jwt.ParseECPublicKeyFromPEM([]byte(jwtSecret))
-				if err != nil {
-					return nil, fmt.Errorf("failed to parse ECC public key: %v", err)
-				}
-				return pubKey, nil
-			}
-			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			return []byte(jwtSecret), nil
 		})
 
 		if err != nil || !token.Valid {

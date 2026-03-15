@@ -18,7 +18,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		origin := strings.TrimRight(r.Header.Get("Origin"), "/")
+		origin := r.Header.Get("Origin")
 		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 		if allowedOrigins == "" {
 			return true
@@ -26,11 +26,10 @@ var upgrader = websocket.Upgrader{
 
 		allowed := strings.Split(allowedOrigins, ",")
 		for _, o := range allowed {
-			if strings.TrimRight(strings.TrimSpace(o), "/") == origin {
+			if o == origin {
 				return true
 			}
 		}
-		log.Printf("WebSocket Origin Rejected: %s (Allowed: %s)", origin, allowedOrigins)
 		return false
 	},
 }
@@ -217,7 +216,7 @@ func findPath(target string) string {
 
 func main() {
 	if err := godotenv.Load(); err != nil {
-		log.Println("No .env file found, relying on system environment variables")
+		log.Println("No .env file found")
 	}
 
 	port := os.Getenv("PORT")

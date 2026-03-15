@@ -157,9 +157,7 @@ class WebSocketService extends ChangeNotifier {
 
     try {
       _channel?.sink.close();
-      _channel = WebSocketChannel.connect(
-        Uri.parse(_serverUrl),
-      );
+      _channel = WebSocketChannel.connect(Uri.parse(_serverUrl));
 
       await _channel!.ready.timeout(
         const Duration(seconds: 8),
