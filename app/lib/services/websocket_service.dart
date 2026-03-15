@@ -238,9 +238,14 @@ class WebSocketService extends ChangeNotifier {
           .select('profiles(username)')
           .eq('room_id', _currentRoomID);
       
-      return (data as List)
-          .map((item) => item['profiles']['username'].toString())
-          .toList();
+      final list = data as List;
+      return list.map((item) {
+        final profile = item['profiles'];
+        if (profile == null) return 'Unknown';
+        if (profile is Map) return profile['username']?.toString() ?? 'Unknown';
+        if (profile is List && profile.isNotEmpty) return profile[0]['username']?.toString() ?? 'Unknown';
+        return 'Unknown';
+      }).toList();
     } catch (e) {
       debugPrint('Error fetching room members: $e');
       return [];
