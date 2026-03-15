@@ -20,6 +20,7 @@ var upgrader = websocket.Upgrader{
 }
 
 type Message struct {
+	Id    string   `json:"id,omitempty"`
 	Type  string   `json:"type"`
 	User  string   `json:"user,omitempty"`
 	Text  string   `json:"text,omitempty"`
