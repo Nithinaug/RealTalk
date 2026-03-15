@@ -55,7 +55,13 @@ var (
 )
 
 func handleConnections(c *gin.Context) {
-	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
+	protocol := c.GetHeader("Sec-WebSocket-Protocol")
+	var responseHeader http.Header
+	if protocol != "" {
+		responseHeader = http.Header{"Sec-WebSocket-Protocol": {protocol}}
+	}
+
+	ws, err := upgrader.Upgrade(c.Writer, c.Request, responseHeader)
 	if err != nil {
 		log.Println(err)
 		return
