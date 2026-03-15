@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 	"sync"
-	"time"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +17,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
+		origin := strings.TrimRight(r.Header.Get("Origin"), "/")
 		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 		if allowedOrigins == "" {
 			return true
@@ -26,7 +25,7 @@ var upgrader = websocket.Upgrader{
 
 		allowed := strings.Split(allowedOrigins, ",")
 		for _, o := range allowed {
-			if o == origin {
+			if strings.TrimRight(strings.TrimSpace(o), "/") == origin {
 				return true
 			}
 		}
@@ -158,7 +157,6 @@ func broadcastUserList(roomID string) {
 	for user := range uniqueUsers {
 		userList = append(userList, user)
 	}
-	log.Printf("Broadcasting users for room %s: %v", roomID, userList)
 
 	msg := Message{
 		Type:  "users",
@@ -224,7 +222,6 @@ func main() {
 	r := gin.Default()
 
 	r.Use(CORSMiddleware())
-	r.Use(RateLimitMiddleware())
 
 	webDir := findPath("web")
 	absWebDir, _ := filepath.Abs(webDir)
@@ -272,38 +269,9 @@ func main() {
 		c.File(indexFile)
 	})
 
-	r.GET("/debug/web", AuthMiddleware(), func(c *gin.Context) {
-		files, _ := os.ReadDir(absWebDir)
-		var list []string
-		for _, f := range files {
-			list = append(list, f.Name())
-		}
-		currDir, _ := filepath.Abs(".")
-		c.JSON(200, gin.H{
-			"webDir": absWebDir,
-			"files":  list,
-			"cwd":    currDir,
-		})
-	})
-
-	if appURL := os.Getenv("APP_URL"); appURL != "" {
-		go startKeepAlive(appURL)
-	}
-
 	log.Printf("Server started on :%s", port)
 	err := r.Run(":" + port)
 	if err != nil {
 		log.Fatal(err)
-	}
-}
-
-func startKeepAlive(appURL string) {
-	ticker := time.NewTicker(14 * time.Minute)
-
-	for range ticker.C {
-		resp, err := http.Get(fmt.Sprintf("%s/health", appURL))
-		if err == nil {
-			resp.Body.Close()
-		}
 	}
 }

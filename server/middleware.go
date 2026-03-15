@@ -1,17 +1,12 @@
 package main
 
 import (
-	"fmt"
-	"net/http"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
-	"golang.org/x/time/rate"
 )
 
 func CORSMiddleware() gin.HandlerFunc {
@@ -28,116 +23,4 @@ func CORSMiddleware() gin.HandlerFunc {
 	config.MaxAge = 12 * time.Hour
 
 	return cors.New(config)
-}
-
-type IPRateLimiter struct {
-	ips map[string]*rate.Limiter
-	mu  sync.Mutex
-	tps float64
-	b   int
-}
-
-func NewIPRateLimiter(r float64, b int) *IPRateLimiter {
-	return &IPRateLimiter{
-		ips: make(map[string]*rate.Limiter),
-		tps: r,
-		b:   b,
-	}
-}
-
-func (i *IPRateLimiter) GetLimiter(ip string) *rate.Limiter {
-	i.mu.Lock()
-	defer i.mu.Unlock()
-
-	limiter, exists := i.ips[ip]
-	if !exists {
-		limiter = rate.NewLimiter(rate.Limit(i.tps), i.b)
-		i.ips[ip] = limiter
-	}
-
-	return limiter
-}
-
-func RateLimitMiddleware() gin.HandlerFunc {
-	tpsStr := os.Getenv("RATE_LIMIT_TPS")
-	burstStr := os.Getenv("RATE_LIMIT_BURST")
-
-	var tps float64 = 1.67
-	var burst int = 50
-
-	if tpsStr != "" {
-		fmt.Sscanf(tpsStr, "%f", &tps)
-	}
-	if burstStr != "" {
-		fmt.Sscanf(burstStr, "%d", &burst)
-	}
-
-	limiter := NewIPRateLimiter(tps, burst)
-
-	return func(c *gin.Context) {
-		ip := c.ClientIP()
-		l := limiter.GetLimiter(ip)
-
-		if !l.Allow() {
-			c.Header("X-RateLimit-Limit", fmt.Sprintf("%.2f", tps))
-			c.Header("X-RateLimit-Remaining", "0")
-			c.Header("X-RateLimit-Reset", "1")
-			c.AbortWithStatusJSON(http.StatusTooManyRequests, gin.H{
-				"error": "Too many requests. Please slow down.",
-			})
-			return
-		}
-
-		c.Next()
-	}
-}
-
-func AuthMiddleware() gin.HandlerFunc {
-	jwtSecret := os.Getenv("JWT_SECRET")
-
-	return func(c *gin.Context) {
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Authorization header required"})
-			return
-		}
-
-		tokenString := strings.TrimPrefix(authHeader, "Bearer ")
-		tokenString = strings.TrimSpace(tokenString)
-
-		if jwtSecret == "" {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{"error": "JWT_SECRET not configured on server"})
-			return
-		}
-
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
-			}
-			return []byte(jwtSecret), nil
-		})
-
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Invalid or expired token"})
-			return
-		}
-
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("user_id", claims["sub"])
-			c.Set("role", claims["role"])
-		}
-
-		c.Next()
-	}
-}
-
-func RBACMiddleware(requiredRole string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		role, exists := c.Get("role")
-		if !exists || role != requiredRole {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{"error": "Insufficient permissions"})
-			return
-		}
-		c.Next()
-	}
 }
