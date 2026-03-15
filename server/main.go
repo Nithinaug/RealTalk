@@ -243,7 +243,7 @@ func main() {
 
 	static := r.Group("/static")
 	{
-		static.GET("/*filepath", func(c *gin.Context) {
+		static.GET(":filepath", func(c *gin.Context) {
 			file := c.Param("filepath")
 
 			if file == "/config.js" || file == "config.js" {
