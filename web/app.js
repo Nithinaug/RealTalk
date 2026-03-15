@@ -115,10 +115,13 @@ document.addEventListener("DOMContentLoaded", () => {
     const { data: { user } } = await client.auth.getUser();
     const { data, error } = await client
       .from("user_rooms")
-      .select("rooms(id, name, creator_id)")
+      .select("rooms(id, name, creator_id, user_rooms(count))")
       .eq("user_id", user.id);
     if (error) return [];
-    return data.map(item => item.rooms);
+    return data.map(item => ({
+      ...item.rooms,
+      member_count: item.rooms.user_rooms[0]?.count ?? 0
+    }));
   }
 
   async function saveJoinedRoom(id, name) {
@@ -147,8 +150,22 @@ document.addEventListener("DOMContentLoaded", () => {
       const icon = document.createElement("div");
       icon.innerHTML = `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--primary)" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>`;
 
+      const infoContainer = document.createElement("div");
+      infoContainer.style.display = "flex";
+      infoContainer.style.flexDirection = "column";
+      infoContainer.style.gap = "2px";
+
       const nameSpan = document.createElement("span");
       nameSpan.textContent = room.name;
+      nameSpan.style.fontWeight = "bold";
+
+      const countSpan = document.createElement("span");
+      countSpan.textContent = `${room.member_count} members`;
+      countSpan.style.fontSize = "12px";
+      countSpan.style.color = "#64748B";
+
+      infoContainer.appendChild(nameSpan);
+      infoContainer.appendChild(countSpan);
 
       const actions = document.createElement("div");
       actions.className = "card-actions";
@@ -170,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       card.appendChild(icon);
-      card.appendChild(nameSpan);
+      card.appendChild(infoContainer);
       card.appendChild(actions);
       joinedRoomsList.appendChild(card);
     });
@@ -408,6 +425,17 @@ document.addEventListener("DOMContentLoaded", () => {
         event: "UPSERT", schema: "public", table: "user_room_clears"
       }, payload => {
         if (payload.new.room_id === currentRoom.id) msgArea.innerHTML = "";
+      })
+      .on("postgres_changes", {
+        event: "*", schema: "public", table: "user_rooms"
+      }, payload => {
+        renderJoinedRooms();
+      })
+      .on("postgres_changes", {
+        event: "DELETE", schema: "public", table: "rooms"
+      }, payload => {
+        renderJoinedRooms();
+        if (currentRoom?.id === payload.old.id) backToRoomsNav.click();
       })
       .subscribe();
   }

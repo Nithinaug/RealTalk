@@ -255,29 +255,6 @@ class _ChatScreenState extends State<ChatScreen> {
                           color: isActive ? const Color(0xFF166534) : const Color(0xFF334155),
                         ),
                       ),
-                      trailing: isCreator 
-                        ? IconButton(
-                            icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 18),
-                            onPressed: () async {
-                              final confirm = await _showConfirm('Delete Room?', 'Delete this room for everyone?');
-                              if (confirm) {
-                                await svc.deleteRoom(roomId);
-                                _loadRooms();
-                                if (isActive) Navigator.pop(context);
-                              }
-                            },
-                          )
-                        : IconButton(
-                            icon: const Icon(Icons.logout_rounded, color: Color(0xFF64748B), size: 18),
-                            onPressed: () async {
-                              final confirm = await _showConfirm('Exit Room?', 'Remove this room from your list?');
-                              if (confirm) {
-                                await svc.exitRoom(roomId);
-                                _loadRooms();
-                                if (isActive) Navigator.pop(context);
-                              }
-                            },
-                          ),
                       onTap: () {
                         if (!isActive) {
                           Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => ChatScreen(roomID: roomId, roomName: roomName)));

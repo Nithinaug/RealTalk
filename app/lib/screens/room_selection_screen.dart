@@ -25,6 +25,7 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
   void initState() {
     super.initState();
     _loadJoinedRooms();
+    context.read<WebSocketService>().addListener(_loadJoinedRooms);
   }
 
   Future<void> _loadJoinedRooms() async {
@@ -166,43 +167,86 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
                   itemCount: _joinedRooms.length,
                   itemBuilder: (context, index) {
                     final room = _joinedRooms[index];
-                    return GestureDetector(
-                      onTap: () => _enterRoom(room['id'], room['name']),
-                      child: Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: const Color(0xFFE2E8F0)),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.02),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(10),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFF22C55E).withOpacity(0.1),
-                                borderRadius: BorderRadius.circular(12),
+                    final roomId = room['id'];
+                    final roomName = room['name'];
+                    final creatorId = room['creator_id'];
+                    final memberCount = room['member_count'] ?? 0;
+                    final isCreator = creatorId == auth.currentUser?.id;
+
+                    return Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFE2E8F0)),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withOpacity(0.02),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          ),
+                        ],
+                      ),
+                      child: Stack(
+                        children: [
+                          InkWell(
+                            onTap: () => _enterRoom(roomId, roomName),
+                            borderRadius: BorderRadius.circular(20),
+                            child: Padding(
+                              padding: const EdgeInsets.all(12),
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: BoxDecoration(
+                                      color: const Color(0xFF22C55E).withOpacity(0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: const Icon(Icons.group_rounded, color: Color(0xFF22C55E), size: 28),
+                                  ),
+                                  const SizedBox(height: 10),
+                                  Text(
+                                    roomName,
+                                    style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A), fontSize: 14),
+                                    textAlign: TextAlign.center,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    '$memberCount members',
+                                    style: const TextStyle(color: Color(0xFF64748B), fontSize: 12),
+                                  ),
+                                ],
                               ),
-                              child: const Icon(Icons.group_rounded, color: Color(0xFF22C55E), size: 28),
                             ),
-                            const SizedBox(height: 10),
-                            Text(
-                              room['name'],
-                              style: const TextStyle(fontWeight: FontWeight.w700, color: Color(0xFF0F172A), fontSize: 14),
-                              textAlign: TextAlign.center,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
+                          ),
+                          Positioned(
+                            top: 4,
+                            right: 4,
+                            child: isCreator 
+                              ? IconButton(
+                                  icon: const Icon(Icons.delete_outline_rounded, color: Color(0xFFEF4444), size: 18),
+                                  onPressed: () async {
+                                    final confirm = await _showConfirm(context, 'Delete Room?', 'Delete this room for everyone?');
+                                    if (confirm) {
+                                      await context.read<WebSocketService>().deleteRoom(roomId);
+                                      _loadJoinedRooms();
+                                    }
+                                  },
+                                )
+                              : IconButton(
+                                  icon: const Icon(Icons.logout_rounded, color: Color(0xFF64748B), size: 18),
+                                  onPressed: () async {
+                                    final confirm = await _showConfirm(context, 'Exit Room?', 'Remove this room from your list?');
+                                    if (confirm) {
+                                      await context.read<WebSocketService>().exitRoom(roomId);
+                                      _loadJoinedRooms();
+                                    }
+                                  },
+                                ),
+                          ),
+                        ],
                       ),
                     );
                   },
@@ -316,8 +360,26 @@ class _RoomSelectionScreenState extends State<RoomSelectionScreen> {
     );
   }
 
+  Future<bool> _showConfirm(BuildContext context, String title, String content) async {
+    return await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: Text(title),
+        content: Text(content),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            child: const Text('Confirm', style: TextStyle(color: Colors.red)),
+          ),
+        ],
+      ),
+    ) ?? false;
+  }
+
   @override
   void dispose() {
+    context.read<WebSocketService>().removeListener(_loadJoinedRooms);
     _roomIDCtrl.dispose();
     _roomNameCtrl.dispose();
     super.dispose();

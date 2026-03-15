@@ -82,6 +82,7 @@ class WebSocketService extends ChangeNotifier {
     if (_currentRoomID.isEmpty) return;
     _supabaseChannel?.unsubscribe();
 
+    // Specific room channel for messages
     _supabaseChannel = _supabase.channel('room:$_currentRoomID')
       .onPostgresChanges(
         event: PostgresChangeEvent.insert,
@@ -115,6 +116,14 @@ class WebSocketService extends ChangeNotifier {
         callback: (payload) {
           final msgId = payload.oldRecord['id'].toString();
           messages.removeWhere((m) => m.id == msgId);
+          notifyListeners();
+        },
+      )
+      .onPostgresChanges(
+        event: PostgresChangeEvent.all,
+        schema: 'public',
+        table: 'user_rooms',
+        callback: (payload) {
           notifyListeners();
         },
       )
@@ -211,13 +220,15 @@ class WebSocketService extends ChangeNotifier {
 
     final data = await _supabase
         .from('user_rooms')
-        .select('rooms(id, name, creator_id)')
+        .select('rooms(id, name, creator_id, user_rooms(count))')
         .eq('user_id', user.id);
 
-    return (data as List)
-        .map((item) => item['rooms'] as Map<String, dynamic>?)
-        .whereType<Map<String, dynamic>>()
-        .toList();
+    return (data as List).map((item) {
+      final room = Map<String, dynamic>.from(item['rooms']);
+      final counts = item['user_rooms'] as List?;
+      room['member_count'] = counts?.first['count'] ?? 0;
+      return room;
+    }).toList();
   }
 
   Future<void> deleteRoom(String id) async {
