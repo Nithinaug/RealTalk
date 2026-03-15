@@ -80,8 +80,12 @@ func RateLimitMiddleware() gin.HandlerFunc {
 	limiter := NewIPRateLimiter(tps, burst)
 
 	return func(c *gin.Context) {
-		ip := c.ClientIP()
-		l := limiter.GetLimiter(ip)
+		if strings.HasPrefix(c.Request.URL.Path, "/ws") {
+			c.Next()
+			return
+		}
+		clientIP := c.ClientIP()
+		l := limiter.GetLimiter(clientIP)
 
 		if !l.Allow() {
 			c.Header("X-RateLimit-Limit", fmt.Sprintf("%.2f", tps))
