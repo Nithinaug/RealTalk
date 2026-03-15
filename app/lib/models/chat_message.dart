@@ -35,7 +35,7 @@ class ChatMessage {
     if (text != null) map['text'] = text;
     if (roomID != null) {
       map['room_id'] = roomID;
-      map['room'] = roomID; // Send both for compatibility
+      map['room'] = roomID;
     }
     if (users != null) map['users'] = users;
     return map;

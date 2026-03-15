@@ -8,14 +8,29 @@ import (
 	"path/filepath"
 	"sync"
 	"time"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 )
 
 var upgrader = websocket.Upgrader{
+	ReadBufferSize:  1024,
+	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		return true
+		origin := r.Header.Get("Origin")
+		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
+		if allowedOrigins == "" {
+			return true
+		}
+
+		allowed := strings.Split(allowedOrigins, ",")
+		for _, o := range allowed {
+			if o == origin {
+				return true
+			}
+		}
+		return false
 	},
 }
 
@@ -208,6 +223,9 @@ func main() {
 	gin.SetMode(gin.ReleaseMode)
 	r := gin.Default()
 
+	r.Use(CORSMiddleware())
+	r.Use(RateLimitMiddleware())
+
 	webDir := findPath("web")
 	absWebDir, _ := filepath.Abs(webDir)
 	indexFile := filepath.Join(absWebDir, "index.html")
@@ -216,42 +234,45 @@ func main() {
 		c.String(http.StatusOK, "OK")
 	})
 
-	r.GET("/ws", func(c *gin.Context) {
+	r.GET("/ws", AuthMiddleware(), func(c *gin.Context) {
 		handleConnections(c)
 	})
 
-	r.GET("/static/*filepath", func(c *gin.Context) {
-		file := c.Param("filepath")
+	static := r.Group("/static")
+	{
+		static.GET("/*filepath", func(c *gin.Context) {
+			file := c.Param("filepath")
 
-		if file == "/config.js" || file == "config.js" {
-			url := os.Getenv("SUPABASE_URL")
-			key := os.Getenv("SUPABASE_ANON_KEY")
+			if file == "/config.js" || file == "config.js" {
+				url := os.Getenv("SUPABASE_URL")
+				key := os.Getenv("SUPABASE_ANON_KEY")
 
-			if url == "" || key == "" {
-				c.Header("Content-Type", "application/javascript")
-				c.String(500, "console.error('SERVER ERROR: Supabase environment variables are missing!');")
-				return
-			}
+				if url == "" || key == "" {
+					c.Header("Content-Type", "application/javascript")
+					c.String(500, "console.error('SERVER ERROR: Supabase environment variables are missing!');")
+					return
+				}
 
-			configContent := fmt.Sprintf(`const CONFIG = {
+				configContent := fmt.Sprintf(`const CONFIG = {
     SUPABASE_URL: '%s',
     SUPABASE_ANON_KEY: '%s'
 };`, url, key)
 
-			c.Header("Content-Type", "application/javascript")
-			c.String(http.StatusOK, configContent)
-			return
-		}
+				c.Header("Content-Type", "application/javascript")
+				c.String(http.StatusOK, configContent)
+				return
+			}
 
-		fullPath := filepath.Join(absWebDir, file)
-		c.File(fullPath)
-	})
+			fullPath := filepath.Join(absWebDir, file)
+			c.File(fullPath)
+		})
+	}
 
 	r.NoRoute(func(c *gin.Context) {
 		c.File(indexFile)
 	})
 
-	r.GET("/debug/web", func(c *gin.Context) {
+	r.GET("/debug/web", AuthMiddleware(), func(c *gin.Context) {
 		files, _ := os.ReadDir(absWebDir)
 		var list []string
 		for _, f := range files {
