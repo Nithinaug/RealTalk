@@ -16,7 +16,7 @@ CREATE TABLE IF NOT EXISTS public.messages (
 );
 
 CREATE TABLE IF NOT EXISTS public.user_rooms (
-    user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
+    user_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE,
     room_id TEXT REFERENCES public.rooms(id) ON DELETE CASCADE,
     joined_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, room_id)
@@ -65,7 +65,7 @@ DROP POLICY IF EXISTS "Users can delete their own messages for everyone" ON publ
 CREATE POLICY "Users can delete their own messages for everyone" ON public.messages FOR DELETE USING (auth.uid() = user_id);
 
 DROP POLICY IF EXISTS "Users can view their joined rooms" ON public.user_rooms;
-CREATE POLICY "Users can view their joined rooms" ON public.user_rooms FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "Anyone can view room memberships" ON public.user_rooms FOR SELECT USING (true);
 
 DROP POLICY IF EXISTS "Users can join rooms" ON public.user_rooms;
 CREATE POLICY "Users can join rooms" ON public.user_rooms FOR INSERT WITH CHECK (auth.uid() = user_id);
