@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"sync"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
@@ -269,9 +270,24 @@ func main() {
 		c.File(indexFile)
 	})
 
+	if appURL := os.Getenv("APP_URL"); appURL != "" {
+		go startKeepAlive(appURL)
+	}
+
 	log.Printf("Server started on :%s", port)
 	err := r.Run(":" + port)
 	if err != nil {
 		log.Fatal(err)
+	}
+}
+
+func startKeepAlive(appURL string) {
+	ticker := time.NewTicker(14 * time.Minute)
+
+	for range ticker.C {
+		resp, err := http.Get(fmt.Sprintf("%s/health", appURL))
+		if err == nil {
+			resp.Body.Close()
+		}
 	}
 }
