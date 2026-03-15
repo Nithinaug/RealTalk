@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/chat_message.dart';
@@ -15,152 +14,156 @@ class MessageBubble extends StatelessWidget {
     required this.isMe,
   });
 
-  void _showOptions(BuildContext context) {
+  @override
+  Widget build(BuildContext context) {
+    final timeStr = message.timestamp != null
+        ? '${message.timestamp!.hour}:${message.timestamp!.minute.toString().padLeft(2, '0')}'
+        : '';
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Column(
+        crossAxisAlignment:
+            isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment:
+                isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            children: [
+              if (!isMe) ...[
+                CircleAvatar(
+                  radius: 14,
+                  backgroundColor: const Color(0xFF22C55E),
+                  child: Text(
+                    message.user?[0].toUpperCase() ?? '?',
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 10,
+                        fontWeight: FontWeight.bold),
+                  ),
+                ),
+                const SizedBox(width: 8),
+              ],
+              Flexible(
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  decoration: BoxDecoration(
+                    color: isMe ? const Color(0xFF22C55E) : Colors.white,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(16),
+                      topRight: const Radius.circular(16),
+                      bottomLeft: Radius.circular(isMe ? 16 : 4),
+                      bottomRight: Radius.circular(isMe ? 4 : 16),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withOpacity(0.04),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!isMe)
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 4),
+                          child: Text(
+                            message.user ?? 'Unknown',
+                            style: GoogleFonts.inter(
+                              fontSize: 11,
+                              fontWeight: FontWeight.w700,
+                              color: const Color(0xFF166534),
+                            ),
+                          ),
+                        ),
+                      Text(
+                        message.text ?? '',
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          color: isMe ? Colors.white : const Color(0xFF0F172A),
+                          height: 1.3,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          Padding(
+            padding: const EdgeInsets.only(top: 4, left: 40, right: 4),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  timeStr,
+                  style: GoogleFonts.inter(
+                    fontSize: 10,
+                    color: const Color(0xFF94A3B8),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                InkWell(
+                  onTap: () => _showActions(context),
+                  child: Icon(
+                    Icons.more_horiz,
+                    size: 14,
+                    color: const Color(0xFF94A3B8).withOpacity(0.5),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showActions(BuildContext context) {
     showModalBottomSheet(
       context: context,
-      builder: (ctx) => SafeArea(
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.only(
+            topLeft: Radius.circular(20),
+            topRight: Radius.circular(20),
+          ),
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
+            Container(
+              margin: const EdgeInsets.only(top: 12, bottom: 8),
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: Colors.grey[300],
+                borderRadius: BorderRadius.circular(2),
+              ),
+            ),
             ListTile(
               leading: const Icon(Icons.delete_outline, color: Color(0xFF64748B)),
-              title: const Text('Delete for Me'),
+              title: const Text('Delete for me'),
               onTap: () {
-                if (message.id != null) {
-                  context.read<WebSocketService>().deleteMessageForMe(message.id!);
-                }
+                context.read<WebSocketService>().deleteMessageForMe(message.id!);
                 Navigator.pop(ctx);
               },
             ),
             if (isMe)
               ListTile(
-                leading: const Icon(Icons.delete_forever_rounded, color: Colors.red),
-                title: const Text('Delete for Everyone', style: TextStyle(color: Colors.red)),
-                onTap: () async {
+                leading: const Icon(Icons.delete_sweep_outlined, color: Color(0xFFEF4444)),
+                title: const Text('Delete for everyone', style: TextStyle(color: Color(0xFFEF4444))),
+                onTap: () {
+                  context.read<WebSocketService>().deleteMessageForEveryone(message.id!);
                   Navigator.pop(ctx);
-                  final confirmed = await showDialog<bool>(
-                    context: context,
-                    builder: (dialogCtx) => AlertDialog(
-                      title: const Text('Delete for Everyone?'),
-                      content: const Text('This will remove the message for all participants.'),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogCtx, false),
-                          child: const Text('Cancel'),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(dialogCtx, true),
-                          child: const Text('Delete', style: TextStyle(color: Colors.red)),
-                        ),
-                      ],
-                    ),
-                  );
-                  if (confirmed == true && message.id != null) {
-                    context.read<WebSocketService>().deleteMessageForEveryone(message.id!);
-                  }
                 },
               ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final timeStr = DateFormat('h:mm a').format(message.timestamp);
-
-    return GestureDetector(
-      onLongPress: () => _showOptions(context),
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: 12),
-        child: Column(
-          crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 4, right: 4, bottom: 4),
-              child: Text(
-                isMe ? 'You' : (message.user ?? 'Unknown'),
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: const Color(0xFF64748B),
-                ),
-              ),
-            ),
-            Row(
-              mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                if (!isMe) ...[
-                  CircleAvatar(
-                    radius: 14,
-                    backgroundColor: const Color(0xFF78A9E2),
-                    child: Text(
-                      (message.user ?? '?')[0].toUpperCase(),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 12,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 6),
-                ],
-                Flexible(
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: isMe ? const Color(0xFFDCF8C6) : Colors.white,
-                      borderRadius: BorderRadius.only(
-                        topLeft: const Radius.circular(16),
-                        topRight: const Radius.circular(16),
-                        bottomLeft: isMe ? const Radius.circular(16) : const Radius.circular(4),
-                        bottomRight: isMe ? const Radius.circular(4) : const Radius.circular(16),
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.end,
-                      children: [
-                        Text(
-                          message.text ?? '',
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            color: const Color(0xFF0F172A),
-                            height: 1.4,
-                          ),
-                        ),
-                        const SizedBox(height: 4),
-                        Text(
-                          timeStr,
-                          style: GoogleFonts.inter(
-                            fontSize: 10,
-                            color: isMe
-                                ? const Color(0xFF16A34A).withOpacity(0.7)
-                                : const Color(0xFF94A3B8),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-                if (isMe) ...[
-                  const SizedBox(width: 6),
-                  const CircleAvatar(
-                    radius: 14,
-                    backgroundColor: Color(0xFF22C55E),
-                    child: Icon(Icons.person, color: Colors.white, size: 16),
-                  ),
-                ],
-              ],
-            ),
+            const SizedBox(height: 12),
           ],
         ),
       ),

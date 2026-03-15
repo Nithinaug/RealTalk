@@ -82,7 +82,6 @@ class WebSocketService extends ChangeNotifier {
     if (_currentRoomID.isEmpty) return;
     _supabaseChannel?.unsubscribe();
 
-    // Specific room channel for messages
     _supabaseChannel = _supabase.channel('room:$_currentRoomID')
       .onPostgresChanges(
         event: PostgresChangeEvent.insert,
@@ -229,6 +228,23 @@ class WebSocketService extends ChangeNotifier {
       room['member_count'] = counts?.first['count'] ?? 0;
       return room;
     }).toList();
+  }
+
+  Future<List<String>> getRoomMembers() async {
+    if (_currentRoomID.isEmpty) return [];
+    try {
+      final data = await _supabase
+          .from('user_rooms')
+          .select('profiles(username)')
+          .eq('room_id', _currentRoomID);
+      
+      return (data as List)
+          .map((item) => item['profiles']['username'].toString())
+          .toList();
+    } catch (e) {
+      debugPrint('Error fetching room members: $e');
+      return [];
+    }
   }
 
   Future<void> deleteRoom(String id) async {

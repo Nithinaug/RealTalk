@@ -171,7 +171,6 @@ func broadcastUserList(roomID string) {
 	}
 
 	roomsMu.Lock()
-	defer roomsMu.Unlock()
 	for client := range rooms[roomID] {
 		err := client.Conn.WriteJSON(msg)
 		if err != nil {
@@ -179,6 +178,7 @@ func broadcastUserList(roomID string) {
 			delete(rooms[roomID], client)
 		}
 	}
+	roomsMu.Unlock()
 }
 
 func broadcastMessage(msg Message) {

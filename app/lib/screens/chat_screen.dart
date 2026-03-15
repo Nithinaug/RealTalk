@@ -109,64 +109,36 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Future<bool> _showConfirm(String title, String content) async {
-    return await showDialog<bool>(
+  void _showMembers() async {
+    final svc = context.read<WebSocketService>();
+    final members = await svc.getRoomMembers();
+    
+    if (!mounted) return;
+
+    showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(title),
-        content: Text(content),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
-          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Confirm', style: TextStyle(color: Colors.red))),
-        ],
-      ),
-    ) ?? false;
-  }
-
-  void _showOptions(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      builder: (ctx) => SafeArea(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            ListTile(
-              leading: const Icon(Icons.delete_sweep_rounded, color: Color(0xFF475569)),
-              title: const Text('Clear Chat History for Me'),
-              onTap: () {
-                Navigator.pop(ctx);
-                showDialog(
-                  context: context,
-                  builder: (dialogCtx) => AlertDialog(
-                    title: const Text('Clear History?'),
-                    content: const Text('Clear room history for you? This will sync across your devices.'),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(dialogCtx),
-                        child: const Text('Cancel'),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          context.read<WebSocketService>().clearRoomForMe();
-                          Navigator.pop(dialogCtx);
-                        },
-                        child: const Text('Clear', style: TextStyle(color: Colors.red)),
-                      ),
-                    ],
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Room Members', style: GoogleFonts.outfit(fontWeight: FontWeight.bold)),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: members.isEmpty 
+            ? const Text('No members found')
+            : ListView.builder(
+                shrinkWrap: true,
+                itemCount: members.length,
+                itemBuilder: (c, i) => ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFF22C55E),
+                    child: Text(members[i][0].toUpperCase(), style: const TextStyle(color: Colors.white)),
                   ),
-                );
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.meeting_room_rounded, color: Color(0xFF475569)),
-              title: const Text('Leave Room'),
-              onTap: () {
-                Navigator.pop(ctx);
-                Navigator.pop(context);
-              },
-            ),
-          ],
+                  title: Text(members[i], style: GoogleFonts.inter(fontWeight: FontWeight.w600)),
+                ),
+              ),
         ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Close')),
+        ],
       ),
     );
   }
@@ -174,6 +146,7 @@ class _ChatScreenState extends State<ChatScreen> {
   @override
   Widget build(BuildContext context) {
     final svc = context.watch<WebSocketService>();
+    final auth = context.watch<AuthService>();
 
     if (svc.messages.isNotEmpty) _scrollToBottom();
 
@@ -231,10 +204,7 @@ class _ChatScreenState extends State<ChatScreen> {
                   final room = _myRooms[i];
                   final roomId = room['id'];
                   final roomName = room['name'];
-                  final creatorId = room['creator_id'];
                   final isActive = roomId == widget.roomID;
-                  final auth = context.read<AuthService>();
-                  final isCreator = creatorId == auth.currentUser?.id;
 
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
@@ -370,6 +340,20 @@ class _ChatScreenState extends State<ChatScreen> {
                         ),
                       ],
                     ),
+                  ),
+                  Text(
+                    auth.currentUsername ?? '',
+                    style: GoogleFonts.inter(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFF475569),
+                    ),
+                  ),
+                  IconButton(
+                    onPressed: _showMembers,
+                    icon: const Icon(Icons.people_alt_rounded, size: 24),
+                    color: const Color(0xFF64748B),
+                    tooltip: 'Room Members',
                   ),
                   IconButton(
                     onPressed: () {

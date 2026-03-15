@@ -18,39 +18,45 @@ function isMe(username) {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const authWrapper       = document.getElementById("auth-container");
-  const loginForm         = document.getElementById("login-form");
-  const signupForm        = document.getElementById("signup-form");
-  const showSignup        = document.getElementById("show-signup");
-  const showLogin         = document.getElementById("show-login");
-  const loginBtn          = document.getElementById("login-button");
-  const signupBtn         = document.getElementById("signup-button");
-  const clearChatBtn      = document.getElementById("clear-chat-button");
-  const logoutBtn         = document.getElementById("logout-button");
-  const mainChat          = document.getElementById("main-chat");
-  const msgBox            = document.getElementById("chatInput");
-  const msgArea           = document.getElementById("chatMessages");
-  const usersBox          = document.getElementById("onlineUsers");
-  const roomsBox          = document.getElementById("userRoomsList");
-  const displayName       = document.getElementById("display-name");
-  const sendBtn           = document.getElementById("send-btn");
-  const onlineCount       = document.getElementById("online-count");
-  const createRoomBtn     = document.getElementById("show-create-room");
-  const joinRoomBtn       = document.getElementById("show-join-room");
-  const createRoomSubmit  = document.getElementById("create-room-submit");
-  const joinRoomSubmit    = document.getElementById("join-room-submit");
-  const backToRoomsNav    = document.getElementById("back-to-rooms-nav");
-  const roomSelector      = document.getElementById("room-selection-container");
-  const roomsListView     = document.getElementById("rooms-list-view");
-  const createRoomView    = document.getElementById("create-room-view");
-  const joinRoomView      = document.getElementById("join-room-view");
-  const joinedRoomsList   = document.getElementById("joined-rooms-list");
-  const currentRoomLabel  = document.getElementById("current-room-name");
+  const authWrapper = document.getElementById("auth-container");
+  const loginForm = document.getElementById("login-form");
+  const signupForm = document.getElementById("signup-form");
+  const showSignup = document.getElementById("show-signup");
+  const showLogin = document.getElementById("show-login");
+  const loginBtn = document.getElementById("login-button");
+  const signupBtn = document.getElementById("signup-button");
+  const clearChatBtn = document.getElementById("clear-chat-button");
+  const logoutBtn = document.getElementById("logout-button");
+  const mainChat = document.getElementById("main-chat");
+  const msgBox = document.getElementById("chatInput");
+  const msgArea = document.getElementById("chatMessages");
+  const usersBox = document.getElementById("onlineUsers");
+  const roomsBox = document.getElementById("userRoomsList");
+  const displayName = document.getElementById("display-name");
+  const sendBtn = document.getElementById("send-btn");
+  const onlineCount = document.getElementById("online-count");
+  const createRoomBtn = document.getElementById("show-create-room");
+  const joinRoomBtn = document.getElementById("show-join-room");
+  const createRoomSubmit = document.getElementById("create-room-submit");
+  const joinRoomSubmit = document.getElementById("join-room-submit");
+  const backToRoomsNav = document.getElementById("back-to-rooms-nav");
+  const roomSelector = document.getElementById("room-selection-container");
+  const roomsListView = document.getElementById("rooms-list-view");
+  const createRoomView = document.getElementById("create-room-view");
+  const joinRoomView = document.getElementById("join-room-view");
+  const joinedRoomsList = document.getElementById("joined-rooms-list");
+  const currentRoomLabel = document.getElementById("current-room-name");
   const sidebarAddRoomBtn = document.getElementById("sidebar-add-room-btn");
-  const authBackBtn       = document.getElementById("auth-back-to-login");
+  const authBackBtn = document.getElementById("auth-back-to-login");
   const createRoomNameInput = document.getElementById("create-room-name");
-  const createRoomIdInput   = document.getElementById("create-room-id");
-  const joinRoomIdInput     = document.getElementById("join-room-id");
+  const createRoomIdInput = document.getElementById("create-room-id");
+  const joinRoomIdInput = document.getElementById("join-room-id");
+
+  const memberCountBtn = document.getElementById("member-count-btn");
+  const roomMemberCount = document.getElementById("room-member-count");
+  const membersModal = document.getElementById("members-modal");
+  const membersListGrid = document.getElementById("room-members-list");
+  const modalClose = document.querySelector(".modal-close");
 
   let currentRoom = null;
   let realtimeChannel = null;
@@ -234,12 +240,51 @@ document.addEventListener("DOMContentLoaded", () => {
 
     await renderJoinedRooms();
     await fetchHistory();
+    await updateMemberCount();
     connectWebSocket();
     setupRealtime();
   }
 
+  async function updateMemberCount() {
+    if (!currentRoom) return;
+    const { count, error } = await client
+      .from("user_rooms")
+      .select("*", { count: "exact", head: true })
+      .eq("room_id", currentRoom.id);
+    if (!error) {
+      roomMemberCount.textContent = count;
+    }
+  }
+
+  async function showMembersModal() {
+    if (!currentRoom) return;
+    const { data, error } = await client
+      .from("user_rooms")
+      .select("profiles(username)")
+      .eq("room_id", currentRoom.id);
+
+    if (error) return;
+
+    membersListGrid.innerHTML = "";
+    data.forEach(item => {
+      const username = item.profiles?.username || "Unknown";
+      const row = document.createElement("div");
+      row.className = "member-row";
+      row.innerHTML = `
+        <div class="member-avatar">${username.charAt(0).toUpperCase()}</div>
+        <span class="member-name">${username}</span>
+      `;
+      membersListGrid.appendChild(row);
+    });
+    membersModal.style.display = "flex";
+  }
+
+  memberCountBtn.onclick = showMembersModal;
+  modalClose.onclick = () => { membersModal.style.display = "none"; };
+  window.onclick = (e) => { if (e.target === membersModal) membersModal.style.display = "none"; };
+
   async function handleCreateRoom() {
-    const id   = createRoomIdInput.value.trim();
+    const id = createRoomIdInput.value.trim();
     const name = createRoomNameInput.value.trim();
     if (!id || !name) return alert("Please enter both a Room Name and Room ID.");
 
@@ -260,18 +305,18 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   createRoomSubmit.onclick = handleCreateRoom;
-  joinRoomSubmit.onclick   = handleJoinRoom;
+  joinRoomSubmit.onclick = handleJoinRoom;
   createRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") createRoomSubmit.click(); });
-  joinRoomIdInput.addEventListener("keydown",   e => { if (e.key === "Enter") joinRoomSubmit.click(); });
+  joinRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") joinRoomSubmit.click(); });
 
   showSignup.onclick = e => { e.preventDefault(); loginForm.style.display = "none"; signupForm.style.display = "block"; };
-  showLogin.onclick  = e => { e.preventDefault(); signupForm.style.display = "none"; loginForm.style.display = "block"; };
+  showLogin.onclick = e => { e.preventDefault(); signupForm.style.display = "none"; loginForm.style.display = "block"; };
 
   function setBtnLoading(btn, loading) {
-    const text   = btn.querySelector(".btn-text") || btn;
+    const text = btn.querySelector(".btn-text") || btn;
     const loader = btn.querySelector(".loader");
     if (loader) {
-      text.style.display   = loading ? "none"  : "block";
+      text.style.display = loading ? "none" : "block";
       loader.style.display = loading ? "block" : "none";
     }
     btn.disabled = loading;
@@ -336,10 +381,10 @@ document.addEventListener("DOMContentLoaded", () => {
     msgArea.innerHTML = "";
   }
 
-  loginBtn.onclick    = handleLogin;
-  signupBtn.onclick   = handleSignup;
+  loginBtn.onclick = handleLogin;
+  signupBtn.onclick = handleSignup;
   clearChatBtn.onclick = handleClearChat;
-  logoutBtn.onclick   = handleLogout;
+  logoutBtn.onclick = handleLogout;
 
   document.getElementById("login-username").addEventListener("keydown", e => { if (e.key === "Enter") handleLogin(); });
   document.getElementById("login-password").addEventListener("keydown", e => { if (e.key === "Enter") handleLogin(); });
@@ -430,6 +475,7 @@ document.addEventListener("DOMContentLoaded", () => {
         event: "*", schema: "public", table: "user_rooms"
       }, payload => {
         renderJoinedRooms();
+        updateMemberCount();
       })
       .on("postgres_changes", {
         event: "DELETE", schema: "public", table: "rooms"
@@ -491,7 +537,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  sendBtn.onclick  = sendMessage;
+  sendBtn.onclick = sendMessage;
   msgBox.onkeydown = e => { if (e.key === "Enter") sendMessage(); };
 
   const trashSvg = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" /></svg>`;

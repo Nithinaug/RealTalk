@@ -86,8 +86,6 @@
       </div>
 
       <div id="rooms-list-view">
-        <div id="joined-rooms-list" class="rooms-grid">
-          <!-- Joined rooms populated here -->
         </div>
 
         <div class="room-action-buttons">
@@ -146,6 +144,15 @@
       </div>
       <div class="header-actions">
         <span id="display-name" class="username-pill"></span>
+        <button id="member-count-btn" class="btn-icon-labeled" title="Room Members">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path>
+            <circle cx="9" cy="7" r="4"></circle>
+            <path d="M23 21v-2a4 4 0 0 0-3-3.87"></path>
+            <path d="M16 3.13a4 4 0 0 1 0 7.75"></path>
+          </svg>
+          <span id="room-member-count">0</span>
+        </button>
         <button id="clear-chat-button" class="btn-icon" title="Clear History">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <path
@@ -193,9 +200,19 @@
     </main>
   </div>
 
+  <div id="members-modal" class="modal-overlay" style="display: none;">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3>Room Members</h3>
+        <button class="modal-close">&times;</button>
+      </div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="/static/config.js"></script>
-  <script src="/static/app.js?v=10"></script>
+  <script src="/static/app.js?v=11"></script>
 </body>
 
 </html>
