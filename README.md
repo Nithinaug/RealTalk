@@ -1,119 +1,75 @@
-# 🗨️ RealTalk: Multi-Platform Real-Time Messenger
+# RealTalk
 
-RealTalk is a high-performance, real-time chat ecosystem featuring a **sleak Web Dashboard** and a **modern Flutter Mobile Application**. It bridges a persistent database with a live presence system, delivering a seamless messaging experience across all devices.
-
----
-
-### ✨ Real-Time Features & Why it's Awesome
-
-- **🏠 Smart Room Management**: Create rooms with a unique **Room Name** and **Room ID (Password)**. Join rooms instantly or stay in the 'Public' lounge.
-- **⚡ Persistent Real-Time Messaging**: Powered by **Supabase Realtime**, messages appear instantly across web and mobile without refresh.
-- **🟢 Live Presence System**: A ultra-lightweight **Go WebSocket server** tracks who's online and broadcasts status in real-time.
-- **🧹 Local Privacy**: Clear your chat history locally or delete specific messages without affecting others.
-- **📱 True Multi-Platform**: Consistent WhatsApp-inspired UI across Flutter (iOS/Android) and Vanilla Web.
-- **🛡️ Secure Foundation**: Row Level Security (RLS) ensures only authenticated users can read and write data.
+RealTalk is a production-grade, high-performance real-time messaging platform designed for cross-platform communication. Built with a robust Go backend and featuring dedicated Web and Flutter clients, it prioritizes security, scalability, and exceptional user experience.
 
 ---
 
-### 🛠 Technology Stack
+## 🚀 Features
 
-#### **Core Backend & Infrastructure**
-- **[Go (Golang)](https://golang.org/)**: Presence coordinator and real-time WebSocket messaging server.
-- **[Supabase](https://supabase.com/)**: 
-  - **PostgreSQL**: Robust message storage and room relational data.
-  - **GoTrue Auth**: Secure username/password authentication.
-  - **Realtime**: Database event listeners for zero-latency updates.
+- **Real-Time Synchronicity**: Sub-millisecond message delivery powered by optimized WebSockets.
+- **Cross-Platform Access**: Seamless communication across native Mobile (Flutter) and Web (HTML5/Vanilla JS) environments.
+- **Dynamic Room Management**: Create persistent or ephemeral rooms, join via unique IDs, and manage memberships with integrated "Exit Room" functionality.
+- **Message Persistence**: Full message history synchronization via Supabase integration.
+- **Premium Aesthetics**: Modern, responsive UI featuring glassmorphism elements, vibrant gradients, and smooth micro-animations.
 
-#### **Frontend Clients**
-- **Mobile**: [Flutter](https://flutter.dev/) (Material 3, Dart) with state-of-the-art animations.
-- **Web**: Vanilla [JavaScript](https://developer.mozilla.org/en-US/docs/Web/JavaScript), HTML5/CSS3 (Zero dependency, high performance).
+## 🛡️ Security Architecture
 
----
+RealTalk is built with a security-first mindset, following industry best practices to ensure production-grade safety:
 
-### 🎨 Visual Architecture
+- **JWT Authentication**: Secure token-based authentication compatible with Supabase (supporting both legacy HS256 and modern ES256/ECC signing).
+- **IP-Based Rate Limiting**: Intelligent backend protection against brute-force attacks and API abuse using token-bucket algorithms.
+- **Strict CORS Policy**: Hardened Cross-Origin Resource Sharing configuration decoupled from the codebase via environment variables.
+- **WebSocket Hardening**: Authenticated handshakes utilizing subprotocols to ensure only authorized clients can establish real-time streams.
 
-```mermaid
-graph TD
-    User([User])
-    Web[Web Frontend / Vanilla JS]
-    Mobile[Mobile App / Flutter]
-    
-    subgraph "Backend Infrastructure"
-        GoServer["Go WebSocket Server (Presence)"]
-        Supabase["Supabase (DB + Realtime + Auth)"]
-    end
-    
-    User <--> Web
-    User <--> Mobile
-    Web <--> GoServer
-    Mobile <--> GoServer
-    Web <--> Supabase
-    Mobile <--> Supabase
-```
+## 🏗️ Technology Stack
 
----
+- **Backend**: Go (Gin Gonic, Gorilla WebSockets, JWT-Go)
+- **Web Frontend**: Vanilla JavaScript, Semantic HTML5, CSS3 Custom Properties
+- **Mobile App**: Flutter / Dart
+- **Database/Auth**: Supabase (PostgreSQL & GoTrue)
+- **Configuration**: Environment-driven via `godotenv` and native platform secret management.
 
-### 📁 Project Structure
+## 🛠️ Getting Started
 
-```text
-RealTalk/
-├── app/            # Flutter Mobile Application (iOS/Android)
-├── server/         # Go WebSocket Server (Presence Engine)
-├── web/            # Optimized Web Frontend (Vanilla JS)
-├── supabase_setup/ # SQL Schema, RLS, & Database Policies
-└── README.md       # Project Documentation
-```
+### Prerequisites
 
----
+- [Go](https://go.dev/) 1.25+
+- [Flutter SDK](https://docs.flutter.dev/get-started/install)
+- A Supabase Project
 
-### 🚀 Quick Start Guide
+### Environment Setup
 
-#### **1. Database Setup (Supabase)**
-1. Create a new Supabase project.
-2. Go to the **SQL Editor** in your Supabase dashboard.
-3. Paste and run the contents of [`supabase_setup.sql`](./supabase_setup.sql). This will create all tables, enable RLS, and set up the necessary Realtime publications.
+1. Copy the template: `cp .env.example .env`
+2. Configure your specific environment variables:
+   - `JWT_SECRET`: Your Supabase JWT Public Key (JSON or PEM format).
+   - `ALLOWED_ORIGINS`: Comma-separated list of trusted frontend origins.
+   - `SUPABASE_URL` & `SUPABASE_ANON_KEY`: Found in your Supabase API settings.
 
-#### **2. Presence Server (Go)**
+### Running Globally
+
+**Backend:**
 ```bash
 cd server
 go run main.go
 ```
-*Port: 8080 (Set via env).*
 
-#### **3. Web Frontend**
-Serve the `web` directory using any static file server, or simply open `web/index.html`.
-*Update `SUPABASE_URL` and `SUPABASE_ANON_KEY` in `web/app.js`.*
-
-#### **4. Mobile App (Flutter)**
+**Mobile:**
 ```bash
 cd app
-# Update SUPABASE_URL and SUPABASE_ANON_KEY in lib/main.dart
-flutter pub get
 flutter run
 ```
 
----
+**Web:**
+Simply serve the `web/` directory using any static file server or open `index.html`.
 
-### ☁️ Deployment (Free Tier Tip)
+## 🚢 Deployment
 
-To deploy the Go server on **Render** (Free Tier) without it sleeping:
-1. In Render Dashboard, go to your service **Environment**.
-2. Add `APP_URL` as an environment variable with your Render app URL.
-3. The server will automatically ping its `/health` endpoint every 14 minutes to stay awake.
+The repository is pre-configured for deployment on platforms like **Render** or **Vercel**. 
 
----
-
-### 🛡️ Secure by Design
-This project uses **Row Level Security (RLS)**. By default:
-- Users can only see rooms they have joined.
-- Only room creators can delete rooms.
-- Message deletions are per-user (local clear) unless otherwise configured in policies.
+- **Frontend**: Deploy the `web` folder.
+- **Backend**: Deploy the `server` folder using the Go runtime.
+- **Variables**: Ensure all keys listed in `.env.example` are configured in your deployment dashboard's Environment settings.
 
 ---
 
-### 🤝 Contributing
-Contributions are welcome! Feel free to open issues or submit pull requests to enhance the RealTalk ecosystem.
-
----
-
-*Built with ❤️ by [Nithinaug](https://github.com/Nithinaug)*
+*Built with precision for high-concurrency real-time communication.*
