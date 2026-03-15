@@ -415,11 +415,8 @@ document.addEventListener("DOMContentLoaded", () => {
   async function connectWebSocket() {
     if (socket && socket.readyState !== WebSocket.CLOSED) socket.close();
 
-    const { data: { session } } = await client.auth.getSession();
-    const token = session?.access_token || "";
-
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    socket = new WebSocket(`${proto}://${location.host}/ws`, token ? [token] : undefined);
+    socket = new WebSocket(`${proto}://${location.host}/ws`);
 
     socket.onopen = () => {
       if (myName && joined && currentRoom) {

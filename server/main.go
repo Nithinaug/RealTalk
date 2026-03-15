@@ -55,13 +55,7 @@ var (
 )
 
 func handleConnections(c *gin.Context) {
-	protocol := c.GetHeader("Sec-WebSocket-Protocol")
-	var responseHeader http.Header
-	if protocol != "" {
-		responseHeader = http.Header{"Sec-WebSocket-Protocol": {protocol}}
-	}
-
-	ws, err := upgrader.Upgrade(c.Writer, c.Request, responseHeader)
+	ws, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
 		log.Println(err)
 		return
@@ -244,7 +238,7 @@ func main() {
 		c.String(http.StatusOK, "OK")
 	})
 
-	r.GET("/ws", AuthMiddleware(), func(c *gin.Context) {
+	r.GET("/ws", func(c *gin.Context) {
 		handleConnections(c)
 	})
 

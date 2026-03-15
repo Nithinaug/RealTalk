@@ -157,12 +157,8 @@ class WebSocketService extends ChangeNotifier {
 
     try {
       _channel?.sink.close();
-      final session = _supabase.auth.currentSession;
-      final token = session?.accessToken;
-      
       _channel = WebSocketChannel.connect(
         Uri.parse(_serverUrl),
-        protocols: token != null ? [token] : null,
       );
 
       await _channel!.ready.timeout(
