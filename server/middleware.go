@@ -117,10 +117,17 @@ func AuthMiddleware() gin.HandlerFunc {
 		}
 
 		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); ok {
+				return []byte(jwtSecret), nil
 			}
-			return []byte(jwtSecret), nil
+			if _, ok := token.Method.(*jwt.SigningMethodECDSA); ok {
+				pubKey, err := jwt.ParseECPublicKeyFromPEM([]byte(jwtSecret))
+				if err != nil {
+					return nil, fmt.Errorf("failed to parse ECC public key: %v", err)
+				}
+				return pubKey, nil
+			}
+			return nil, fmt.Errorf("unexpected signing method: %v", token.Header["alg"])
 		})
 
 		if err != nil || !token.Valid {
