@@ -93,6 +93,7 @@ class WebSocketService extends ChangeNotifier {
           value: _currentRoomID,
         ),
         callback: (payload) {
+          if (payload.newRecord['username'] == _username) return;
           final incoming = ChatMessage(
             id: payload.newRecord['id'].toString(),
             type: 'message',
@@ -242,7 +243,7 @@ class WebSocketService extends ChangeNotifier {
     }).select().single();
 
     final msg = ChatMessage(
-      id: response['id'],
+      id: response['id'].toString(),
       type: 'message',
       user: _username,
       text: text.trim(),
@@ -326,6 +327,7 @@ class WebSocketService extends ChangeNotifier {
       final msg = ChatMessage.fromJson(json);
 
       if (type == 'message') {
+        if (msg.user == _username) return;
         if ((msg.roomID == _currentRoomID || msg.roomID == null) &&
             !messages.any((m) => m.id == msg.id)) {
           messages.add(msg);

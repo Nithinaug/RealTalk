@@ -432,7 +432,7 @@ document.addEventListener("DOMContentLoaded", () => {
         showUsers(msg.users);
         onlineCount.textContent = `${msg.users.length} online`;
       } else if (msg.type === "message" && msg.user !== myName) {
-        addMsg(msg.user, msg.text, new Date().toISOString());
+        addMsg(msg.user, msg.text, new Date().toISOString(), msg.id);
       }
     };
 
