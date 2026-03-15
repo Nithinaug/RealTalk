@@ -18,7 +18,7 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin: func(r *http.Request) bool {
-		origin := r.Header.Get("Origin")
+		origin := strings.TrimRight(r.Header.Get("Origin"), "/")
 		allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 		if allowedOrigins == "" {
 			return true
@@ -26,10 +26,11 @@ var upgrader = websocket.Upgrader{
 
 		allowed := strings.Split(allowedOrigins, ",")
 		for _, o := range allowed {
-			if o == origin {
+			if strings.TrimRight(strings.TrimSpace(o), "/") == origin {
 				return true
 			}
 		}
+		log.Printf("WebSocket Origin Rejected: %s (Allowed: %s)", origin, allowedOrigins)
 		return false
 	},
 }
