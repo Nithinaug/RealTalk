@@ -419,13 +419,16 @@ document.addEventListener("DOMContentLoaded", () => {
     socket = new WebSocket(`${proto}://${location.host}/ws`);
 
     socket.onopen = () => {
+      console.log("WebSocket Connected");
       if (myName && joined && currentRoom) {
+        console.log("Sending join message:", { myName, room: currentRoom.id });
         socket.send(JSON.stringify({ type: "join", user: myName, room: currentRoom.id }));
       }
     };
 
     socket.onmessage = e => {
       const msg = JSON.parse(e.data);
+      console.log("WS Received:", msg.type, msg);
       if (msg.room && msg.room !== currentRoom.id) return;
 
       if (msg.type === "users") {
@@ -436,8 +439,13 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     };
 
-    socket.onclose = () => {
+    socket.onclose = (e) => {
+      console.warn("WebSocket Closed:", e.code, e.reason);
       if (joined && currentRoom) setTimeout(connectWebSocket, 3000);
+    };
+
+    socket.onerror = (err) => {
+      console.error("WebSocket Error:", err);
     };
   }
 
