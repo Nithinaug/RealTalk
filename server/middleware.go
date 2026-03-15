@@ -121,6 +121,21 @@ func AuthMiddleware() gin.HandlerFunc {
 				return []byte(jwtSecret), nil
 			}
 			if _, ok := token.Method.(*jwt.SigningMethodECDSA); ok {
+				if strings.HasPrefix(strings.TrimSpace(jwtSecret), "{") {
+					var jwk struct {
+						X string `json:"x"`
+						Y string `json:"y"`
+					}
+					if err := json.Unmarshal([]byte(jwtSecret), &jwk); err == nil {
+						xBytes, _ := base64.RawURLEncoding.DecodeString(jwk.X)
+						yBytes, _ := base64.RawURLEncoding.DecodeString(jwk.Y)
+						return &ecdsa.PublicKey{
+							Curve: elliptic.P256(),
+							X:     new(big.Int).SetBytes(xBytes),
+							Y:     new(big.Int).SetBytes(yBytes),
+						}, nil
+					}
+				}
 				pubKey, err := jwt.ParseECPublicKeyFromPEM([]byte(jwtSecret))
 				if err != nil {
 					return nil, fmt.Errorf("failed to parse ECC public key: %v", err)
