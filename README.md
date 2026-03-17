@@ -47,5 +47,3 @@ flutter run
 Simply serve the `web/` directory using any static file server or open `index.html`.
 
 ---
-
-*Built for high-concurrency real-time communication.*
