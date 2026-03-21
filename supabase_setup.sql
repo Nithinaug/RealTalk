@@ -1,3 +1,9 @@
+CREATE TABLE IF NOT EXISTS public.profiles (
+    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+    username TEXT UNIQUE NOT NULL,
+    created_at TIMESTAMPTZ DEFAULT NOW()
+);
+
 CREATE TABLE IF NOT EXISTS public.rooms (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
@@ -22,6 +28,23 @@ CREATE TABLE IF NOT EXISTS public.user_rooms (
     PRIMARY KEY (user_id, room_id)
 );
 
+-- Ensure the relationship exists even if the table was created previously with auth.users
+DO $$ 
+BEGIN 
+    IF EXISTS (
+        SELECT 1 FROM information_schema.table_constraints 
+        WHERE table_name = 'user_rooms' AND constraint_name = 'user_rooms_user_id_fkey'
+    ) THEN
+        ALTER TABLE public.user_rooms DROP CONSTRAINT user_rooms_user_id_fkey;
+    END IF;
+    
+    ALTER TABLE public.user_rooms 
+    ADD CONSTRAINT user_rooms_user_id_fkey 
+    FOREIGN KEY (user_id) REFERENCES public.profiles(id) ON DELETE CASCADE;
+EXCEPTION
+    WHEN OTHERS THEN NULL;
+END $$;
+
 CREATE TABLE IF NOT EXISTS public.user_deleted_messages (
     user_id UUID REFERENCES auth.users(id) ON DELETE CASCADE,
     message_id BIGINT REFERENCES public.messages(id) ON DELETE CASCADE,
@@ -34,12 +57,6 @@ CREATE TABLE IF NOT EXISTS public.user_room_clears (
     room_id TEXT REFERENCES public.rooms(id) ON DELETE CASCADE,
     cleared_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, room_id)
-);
-
-CREATE TABLE IF NOT EXISTS public.profiles (
-    id UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
-    username TEXT UNIQUE NOT NULL,
-    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 ALTER TABLE public.rooms ENABLE ROW LEVEL SECURITY;
