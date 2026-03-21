@@ -195,7 +195,7 @@ class WebSocketService extends ChangeNotifier {
         .eq('user_id', user.id);
     return (data as List).map((item) {
       final room = Map<String, dynamic>.from(item['rooms']);
-      final counts = item['user_rooms'] as List?;
+      final counts = room['user_rooms'] as List?;
       room['member_count'] = counts?.first['count'] ?? 0;
       return room;
     }).toList();
