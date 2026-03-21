@@ -12,7 +12,7 @@ import (
 func CORSMiddleware() gin.HandlerFunc {
 	allowedOrigins := os.Getenv("ALLOWED_ORIGINS")
 	if allowedOrigins == "" {
-		allowedOrigins = "http://localhost:8080,http://localhost:3000,https://realtalk-f233.onrender.com"
+		allowedOrigins = "http://localhost:8080,http://localhost:3000,https://realtalk-nzun.onrender.com"
 	}
 
 	config := cors.DefaultConfig()
