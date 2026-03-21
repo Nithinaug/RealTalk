@@ -97,8 +97,8 @@ document.addEventListener("DOMContentLoaded", () => {
     showRoomList();
   };
   sidebarAddRoomBtn.onclick = () => {
-    mainChat.style.display = "none";
-    roomSelector.style.display = "flex";
+    mainChat.classList.add("hidden");
+    roomSelector.classList.remove("hidden");
     showRoomList();
   };
   async function getJoinedRooms() {
