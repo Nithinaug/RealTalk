@@ -126,7 +126,7 @@ document.addEventListener("DOMContentLoaded", () => {
     const { data: { user } } = await client.auth.getUser();
     const activeId = currentRoom?.id ?? null;
     joinedRoomsList.innerHTML = "";
-    joinedRoomsList.style.display = rooms.length === 0 ? "none" : "grid";
+    joinedRoomsList.classList.toggle("hidden", rooms.length === 0);
     rooms.forEach(room => {
       const card = document.createElement("div");
       card.className = "room-card";
