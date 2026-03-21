@@ -258,16 +258,34 @@ document.addEventListener("DOMContentLoaded", () => {
 
   async function showMembersModal() {
     if (!currentRoom) return;
+    
+    membersModal.classList.remove("hidden");
+    membersListGrid.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8;">Loading members...</div>';
+
     const { data, error } = await client
       .from("user_rooms")
       .select("profiles(username)")
       .eq("room_id", currentRoom.id);
 
-    if (error) return;
+    if (error) {
+      membersListGrid.innerHTML = `<div style="padding: 20px; text-align: center; color: #ef4444;">Error: ${error.message}</div>`;
+      return;
+    }
+
+    if (!data || data.length === 0) {
+      membersListGrid.innerHTML = '<div style="padding: 20px; text-align: center; color: #94a3b8;">No members found.</div>';
+      return;
+    }
 
     membersListGrid.innerHTML = "";
     data.forEach(item => {
-      const username = item.profiles?.username || "Unknown";
+      let username = "Unknown";
+      if (item.profiles) {
+        username = Array.isArray(item.profiles) 
+          ? (item.profiles[0]?.username || "Unknown") 
+          : (item.profiles.username || "Unknown");
+      }
+
       const row = document.createElement("div");
       row.className = "member-row";
       row.innerHTML = `
@@ -276,7 +294,6 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       membersListGrid.appendChild(row);
     });
-    membersModal.classList.remove("hidden");
   }
 
   memberCountBtn.onclick = showMembersModal;
