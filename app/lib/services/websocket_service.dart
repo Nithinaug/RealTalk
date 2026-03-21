@@ -4,56 +4,43 @@ import 'package:flutter/foundation.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import '../models/chat_message.dart';
-
 enum ConnectionStatus { disconnected, connecting, connected, error }
-
 class WebSocketService extends ChangeNotifier {
   final _supabase = Supabase.instance.client;
   WebSocketChannel? _channel;
   StreamSubscription? _subscription;
   RealtimeChannel? _supabaseChannel;
   Timer? _pingTimer;
-
   final List<ChatMessage> messages = [];
   List<String> onlineUsers = [];
-
   ConnectionStatus status = ConnectionStatus.disconnected;
   String? errorMessage;
-
   String _serverUrl = '';
   String _username = '';
   String _currentRoomID = '';
   String _currentRoomName = '';
   bool _joined = false;
-
   bool get isJoined => _joined;
   String get username => _username;
   String get currentRoomID => _currentRoomID;
-
   Future<void> _fetchHistory() async {
     if (_currentRoomID.isEmpty) return;
-
     final user = _supabase.auth.currentUser;
     if (user == null) return;
-
     final clearRecord = await _supabase
         .from('user_room_clears')
         .select('cleared_at')
         .eq('user_id', user.id)
         .eq('room_id', _currentRoomID)
         .maybeSingle();
-
     final clearedAt = clearRecord?['cleared_at'] ?? '1970-01-01T00:00:00Z';
-
     final deletedRecords = await _supabase
         .from('user_deleted_messages')
         .select('message_id')
         .eq('user_id', user.id);
-
     final deletedIds = (deletedRecords as List)
         .map((d) => d['message_id'].toString())
         .toList();
-
     final rows = await _supabase
         .from('messages')
         .select()
@@ -61,7 +48,6 @@ class WebSocketService extends ChangeNotifier {
         .gt('created_at', clearedAt)
         .order('created_at', ascending: true)
         .limit(100);
-
     messages.clear();
     for (final row in rows) {
       if (!deletedIds.contains(row['id'].toString())) {
@@ -77,11 +63,9 @@ class WebSocketService extends ChangeNotifier {
     }
     notifyListeners();
   }
-
   void _setupSupabaseRealtime() {
     if (_currentRoomID.isEmpty) return;
     _supabaseChannel?.unsubscribe();
-
     _supabaseChannel = _supabase.channel('room:$_currentRoomID')
       .onPostgresChanges(
         event: PostgresChangeEvent.insert,
@@ -152,36 +136,29 @@ class WebSocketService extends ChangeNotifier {
       )
       .subscribe();
   }
-
   Future<void> connect(String url, String roomID) async {
     _serverUrl = _toWsUrl(url);
     _currentRoomID = roomID;
     status = ConnectionStatus.connecting;
     errorMessage = null;
     notifyListeners();
-
     await _fetchHistory();
     _setupSupabaseRealtime();
-
     try {
       _channel?.sink.close();
       _channel = WebSocketChannel.connect(Uri.parse(_serverUrl));
-
       await _channel!.ready.timeout(
         const Duration(seconds: 8),
         onTimeout: () => throw Exception('Connection timed out'),
       );
-
       status = ConnectionStatus.connected;
       notifyListeners();
-
       _pingTimer?.cancel();
       _pingTimer = Timer.periodic(const Duration(seconds: 15), (_) {
         if (_channel != null && status == ConnectionStatus.connected) {
           _send(ChatMessage(type: 'ping'));
         }
       });
-
       _subscription?.cancel();
       _subscription = _channel!.stream.listen(_onData, onError: _onError, onDone: _onDone);
     } catch (e) {
@@ -191,13 +168,11 @@ class WebSocketService extends ChangeNotifier {
       notifyListeners();
     }
   }
-
   Future<void> join(String username, String roomID, String roomName) async {
     _username = username.trim();
     _currentRoomID = roomID;
     _currentRoomName = roomName;
     _joined = true;
-
     try {
       final user = _supabase.auth.currentUser;
       if (user != null) {
@@ -208,20 +183,16 @@ class WebSocketService extends ChangeNotifier {
         await _supabase.from('user_rooms').upsert({'user_id': user.id, 'room_id': roomID});
       }
     } catch (_) {}
-
     _send(ChatMessage(type: 'join', user: _username, roomID: _currentRoomID));
     notifyListeners();
   }
-
   Future<List<Map<String, dynamic>>> getJoinedRooms() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return [];
-
     final data = await _supabase
         .from('user_rooms')
         .select('rooms(id, name, creator_id, user_rooms(count))')
         .eq('user_id', user.id);
-
     return (data as List).map((item) {
       final room = Map<String, dynamic>.from(item['rooms']);
       final counts = item['user_rooms'] as List?;
@@ -229,7 +200,6 @@ class WebSocketService extends ChangeNotifier {
       return room;
     }).toList();
   }
-
   Future<List<String>> getRoomMembers() async {
     if (_currentRoomID.isEmpty) return [];
     try {
@@ -251,22 +221,18 @@ class WebSocketService extends ChangeNotifier {
       return [];
     }
   }
-
   Future<void> deleteRoom(String id) async {
     await _supabase.from('rooms').delete().eq('id', id);
     notifyListeners();
   }
-
   Future<void> exitRoom(String id) async {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
     await _supabase.from('user_rooms').delete().eq('user_id', user.id).eq('room_id', id);
     notifyListeners();
   }
-
   Future<void> sendMessage(String text) async {
     if (text.trim().isEmpty || _currentRoomID.isEmpty) return;
-
     final user = _supabase.auth.currentUser;
     final response = await _supabase.from('messages').insert({
       'username': _username,
@@ -274,7 +240,6 @@ class WebSocketService extends ChangeNotifier {
       'text': text.trim(),
       'room_id': _currentRoomID,
     }).select().single();
-
     final msg = ChatMessage(
       id: response['id'].toString(),
       type: 'message',
@@ -282,14 +247,12 @@ class WebSocketService extends ChangeNotifier {
       text: text.trim(),
       roomID: _currentRoomID,
     );
-
     _send(msg);
     if (!messages.any((m) => m.id == msg.id)) {
       messages.add(msg);
       notifyListeners();
     }
   }
-
   Future<void> deleteMessageForMe(String msgId) async {
     final user = _supabase.auth.currentUser;
     if (user == null) return;
@@ -300,11 +263,9 @@ class WebSocketService extends ChangeNotifier {
     messages.removeWhere((m) => m.id == msgId);
     notifyListeners();
   }
-
   Future<void> deleteMessageForEveryone(String msgId) async {
     await _supabase.from('messages').delete().eq('id', msgId);
   }
-
   Future<void> clearRoomForMe() async {
     final user = _supabase.auth.currentUser;
     if (user == null || _currentRoomID.isEmpty) return;
@@ -316,12 +277,10 @@ class WebSocketService extends ChangeNotifier {
     messages.clear();
     notifyListeners();
   }
-
   void clearMessages() {
     messages.clear();
     notifyListeners();
   }
-
   void disconnect() {
     _subscription?.cancel();
     _channel?.sink.close();
@@ -333,18 +292,15 @@ class WebSocketService extends ChangeNotifier {
     onlineUsers.clear();
     notifyListeners();
   }
-
   void _send(ChatMessage msg) {
     if (_channel == null) return;
     _channel!.sink.add(jsonEncode(msg.toJson()));
   }
-
   void _onData(dynamic data) {
     try {
       final json = jsonDecode(data as String) as Map<String, dynamic>;
       final type = json['type'] as String? ?? '';
       final room = (json['room'] ?? json['room_id']) as String? ?? '';
-
       if (type == 'users') {
         if (room == _currentRoomID || room.isEmpty) {
           onlineUsers = List<String>.from(json['users'] as List? ?? []);
@@ -352,13 +308,10 @@ class WebSocketService extends ChangeNotifier {
         }
         return;
       }
-
       if (json.containsKey('room') && !json.containsKey('room_id')) {
         json['room_id'] = json['room'];
       }
-
       final msg = ChatMessage.fromJson(json);
-
       if (type == 'message') {
         if (msg.user == _username) return;
         if ((msg.roomID == _currentRoomID || msg.roomID == null) &&
@@ -369,12 +322,10 @@ class WebSocketService extends ChangeNotifier {
       }
     } catch (_) {}
   }
-
   void _onError(Object error) {
     status = ConnectionStatus.error;
     notifyListeners();
   }
-
   void _onDone() {
     status = ConnectionStatus.disconnected;
     _joined = false;
@@ -389,7 +340,6 @@ class WebSocketService extends ChangeNotifier {
       }
     });
   }
-
   String _toWsUrl(String url) {
     url = url.trim();
     if (url.isEmpty) return '';
@@ -409,7 +359,6 @@ class WebSocketService extends ChangeNotifier {
     }
     return url;
   }
-
   @override
   void dispose() {
     disconnect();
