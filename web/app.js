@@ -62,15 +62,15 @@ document.addEventListener("DOMContentLoaded", () => {
   let realtimeChannel = null;
 
   authBackBtn.onclick = () => {
-    roomSelector.style.display = "none";
-    authWrapper.style.display = "flex";
+    roomSelector.classList.add("hidden");
+    authWrapper.classList.remove("hidden");
     showLogin.click();
   };
 
   function showRoomList() {
-    roomsListView.style.display = "flex";
-    createRoomView.style.display = "none";
-    joinRoomView.style.display = "none";
+    roomsListView.classList.remove("hidden");
+    createRoomView.classList.add("hidden");
+    joinRoomView.classList.add("hidden");
     createRoomNameInput.value = "";
     createRoomIdInput.value = "";
     joinRoomIdInput.value = "";
@@ -78,13 +78,13 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   createRoomBtn.onclick = () => {
-    roomsListView.style.display = "none";
-    createRoomView.style.display = "block";
+    roomsListView.classList.add("hidden");
+    createRoomView.classList.remove("hidden");
   };
 
   joinRoomBtn.onclick = () => {
-    roomsListView.style.display = "none";
-    joinRoomView.style.display = "block";
+    roomsListView.classList.add("hidden");
+    joinRoomView.classList.remove("hidden");
   };
 
   document.querySelectorAll(".back-to-rooms").forEach(btn => {
@@ -92,8 +92,8 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   backToRoomsNav.onclick = () => {
-    mainChat.style.display = "none";
-    roomSelector.style.display = "flex";
+    mainChat.classList.add("hidden");
+    roomSelector.classList.remove("hidden");
 
     if (socket && socket.readyState === 1) {
       socket.send(JSON.stringify({ type: "leave", user: myName, room: currentRoom?.id ?? "" }));
@@ -234,8 +234,8 @@ document.addEventListener("DOMContentLoaded", () => {
     await saveJoinedRoom(id, name);
 
     currentRoomLabel.textContent = `Room: ${name}`;
-    roomSelector.style.display = "none";
-    mainChat.style.display = "flex";
+    roomSelector.classList.add("hidden");
+    mainChat.classList.remove("hidden");
     joined = true;
 
     await renderJoinedRooms();
@@ -276,12 +276,12 @@ document.addEventListener("DOMContentLoaded", () => {
       `;
       membersListGrid.appendChild(row);
     });
-    membersModal.style.display = "flex";
+    membersModal.classList.remove("hidden");
   }
 
   memberCountBtn.onclick = showMembersModal;
-  modalClose.onclick = () => { membersModal.style.display = "none"; };
-  window.onclick = (e) => { if (e.target === membersModal) membersModal.style.display = "none"; };
+  modalClose.onclick = () => { membersModal.classList.add("hidden"); };
+  window.onclick = (e) => { if (e.target === membersModal) membersModal.classList.add("hidden"); };
 
   async function handleCreateRoom() {
     const id = createRoomIdInput.value.trim();
@@ -309,14 +309,14 @@ document.addEventListener("DOMContentLoaded", () => {
   createRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") createRoomSubmit.click(); });
   joinRoomIdInput.addEventListener("keydown", e => { if (e.key === "Enter") joinRoomSubmit.click(); });
 
-  showSignup.onclick = e => { e.preventDefault(); loginForm.style.display = "none"; signupForm.style.display = "block"; };
-  showLogin.onclick = e => { e.preventDefault(); signupForm.style.display = "none"; loginForm.style.display = "block"; };
+  showSignup.onclick = e => { e.preventDefault(); loginForm.classList.add("hidden"); signupForm.classList.remove("hidden"); };
+  showLogin.onclick = e => { e.preventDefault(); signupForm.classList.add("hidden"); loginForm.classList.remove("hidden"); };
 
   function setBtnLoading(btn, loading) {
     const text = btn.querySelector(".btn-text") || btn;
     const loader = btn.querySelector(".loader");
     if (loader) {
-      text.style.display = loading ? "none" : "block";
+      if (text) text.style.display = loading ? "none" : "block";
       loader.style.display = loading ? "block" : "none";
     }
     btn.disabled = loading;
@@ -371,13 +371,12 @@ document.addEventListener("DOMContentLoaded", () => {
     if (!confirm("Clear your chat history for this room?")) return;
 
     const { data: { user } } = await client.auth.getUser();
-    const { error } = await client.from("user_room_clears").upsert({
+    await client.from("user_room_clears").upsert({
       user_id: user.id,
       room_id: currentRoom.id,
       cleared_at: new Date().toISOString()
     });
 
-    if (error) return alert("Failed to clear chat history.");
     msgArea.innerHTML = "";
   }
 
@@ -392,8 +391,8 @@ document.addEventListener("DOMContentLoaded", () => {
   function onAuthenticated(user) {
     myName = (user.user_metadata?.username || user.email.split("@")[0]).trim();
     displayName.textContent = myName;
-    authWrapper.style.display = "none";
-    roomSelector.style.display = "flex";
+    authWrapper.classList.add("hidden");
+    roomSelector.classList.remove("hidden");
     showRoomList();
     renderJoinedRooms();
   }
