@@ -189,13 +189,19 @@ class WebSocketService extends ChangeNotifier {
   Future<List<Map<String, dynamic>>> getJoinedRooms() async {
     final user = _supabase.auth.currentUser;
     if (user == null) return [];
-    final data = await _supabase
+    final userRoomsData = await _supabase
         .from('user_rooms')
-        .select('rooms(id, name, creator_id, user_rooms(count))')
+        .select('room_id')
         .eq('user_id', user.id);
-    return (data as List).map((item) {
-      final room = Map<String, dynamic>.from(item['rooms']);
-      final counts = room['user_rooms'] as List?;
+    final roomIds = (userRoomsData as List).map((ur) => ur['room_id']).toList();
+    if (roomIds.isEmpty) return [];
+    final roomsData = await _supabase
+        .from('rooms')
+        .select('id, name, creator_id, user_rooms(count)')
+        .in_('id', roomIds);
+    return (roomsData as List).map((item) {
+      final room = Map<String, dynamic>.from(item);
+      final counts = item['user_rooms'] as List?;
       room['member_count'] = counts?.first['count'] ?? 0;
       return room;
     }).toList();
