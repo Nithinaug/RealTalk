@@ -103,14 +103,21 @@ document.addEventListener("DOMContentLoaded", () => {
   };
   async function getJoinedRooms() {
     const { data: { user } } = await client.auth.getUser();
-    const { data, error } = await client
+    if (!user) return [];
+    const { data: userRooms, error: urError } = await client
       .from("user_rooms")
-      .select("rooms(id, name, creator_id, user_rooms(count))")
+      .select("room_id")
       .eq("user_id", user.id);
+    if (urError || !userRooms || userRooms.length === 0) return [];
+    const roomIds = userRooms.map(ur => ur.room_id);
+    const { data, error } = await client
+      .from("rooms")
+      .select("id, name, creator_id, user_rooms(count)")
+      .in("id", roomIds);
     if (error) return [];
     return data.map(item => ({
-      ...item.rooms,
-      member_count: item.rooms.user_rooms[0]?.count ?? 0
+      ...item,
+      member_count: item.user_rooms[0]?.count ?? 0
     }));
   }
   async function saveJoinedRoom(id, name) {
