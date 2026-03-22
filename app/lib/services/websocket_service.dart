@@ -198,7 +198,7 @@ class WebSocketService extends ChangeNotifier {
     final roomsData = await _supabase
         .from('rooms')
         .select('id, name, creator_id, user_rooms(count)')
-        .in_('id', roomIds);
+        .inFilter('id', roomIds);
     return (roomsData as List).map((item) {
       final room = Map<String, dynamic>.from(item);
       final counts = item['user_rooms'] as List?;
