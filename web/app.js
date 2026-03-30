@@ -435,7 +435,10 @@ document.addEventListener("DOMContentLoaded", () => {
   function connectWebSocket() {
     if (socket && socket.readyState !== WebSocket.CLOSED) socket.close();
     const proto = location.protocol === "https:" ? "wss" : "ws";
-    socket = new WebSocket(`${proto}://${location.host}/ws`);
+    const wsUrl = (CONFIG.BACKEND_URL) ? 
+      (CONFIG.BACKEND_URL.startsWith('ws') ? CONFIG.BACKEND_URL : `${proto}://${CONFIG.BACKEND_URL.replace(/^https?:\/\//, '')}/ws`) : 
+      `${proto}://${location.host}/ws`;
+    socket = new WebSocket(wsUrl);
     socket.onopen = () => {
       if (myName && joined && currentRoom) {
         socket.send(JSON.stringify({ type: "join", user: myName, room: currentRoom.id }));
