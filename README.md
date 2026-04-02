@@ -1,7 +1,8 @@
 # RealTalk
-
+# RealTalk
 RealTalk is a production-grade, high-performance real-time messaging platform designed for cross-platform communication. Built with a robust Go backend and featuring dedicated Web and Flutter clients, it prioritizes performance, scalability, and exceptional user experience.
 
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit%20Site-brightgreen?style=for-the-badge)](https://realtalk-nzun.onrender.com)
 ---
 
 ## 🚀 Features
