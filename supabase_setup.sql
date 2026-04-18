@@ -27,8 +27,6 @@ CREATE TABLE IF NOT EXISTS public.user_rooms (
     joined_at TIMESTAMPTZ DEFAULT NOW(),
     PRIMARY KEY (user_id, room_id)
 );
-
--- Ensure the relationship exists even if the table was created previously with auth.users
 DO $$ 
 BEGIN 
     IF EXISTS (
