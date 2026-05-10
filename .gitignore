@@ -1,2 +1,4 @@
 .env
 web/config.js
+.env.example
+supabase_setup.sql
