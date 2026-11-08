@@ -2,3 +2,8 @@
 web/config.js
 .env.example
 supabase_setup.sql
+node_modules/
+*.exe
+app/*log*.txt
+app/android/build/
+brag-output/
